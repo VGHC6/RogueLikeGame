@@ -1,5 +1,7 @@
 using System;
-public class BindableProperty<T> where T : IEquatable<T>
+using System.Collections.Generic;
+
+public class BindableProperty<T>
 {
     private T mValue;
 
@@ -8,7 +10,7 @@ public class BindableProperty<T> where T : IEquatable<T>
         get => mValue;
         set
         {
-            if (!mValue.Equals(value))
+            if (!EqualityComparer<T>.Default.Equals(mValue, value))
             {
                 mValue = value;
                 mOnValueChanged?.Invoke(value);
@@ -16,9 +18,9 @@ public class BindableProperty<T> where T : IEquatable<T>
         }
     }
 
-    private Action<T> mOnValueChanged = (v) => { }; // -+
+    private Action<T> mOnValueChanged = (v) => { };
 
-    public IUnRegister RegisterOnValueChanged(Action<T> onValueChanged) // +
+    public IUnRegister RegisterOnValueChanged(Action<T> onValueChanged)
     {
         mOnValueChanged += onValueChanged;
         return new BindablePropertyUnRegister<T>()
@@ -28,13 +30,13 @@ public class BindableProperty<T> where T : IEquatable<T>
         };
     }
 
-    public void UnRegisterOnValueChanged(Action<T> onValueChanged) // +
+    public void UnRegisterOnValueChanged(Action<T> onValueChanged)
     {
         mOnValueChanged -= onValueChanged;
     }
 }
 
-public class BindablePropertyUnRegister<T> : IUnRegister where T : IEquatable<T> // +
+public class BindablePropertyUnRegister<T> : IUnRegister
 {
     public BindableProperty<T> BindableProperty { get; set; }
 

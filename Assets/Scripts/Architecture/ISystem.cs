@@ -1,5 +1,5 @@
 //系统层接口
-public interface ISystem : IBelongToAchitecture, ICanSetArchitecture, ICanGetModel, ICanGetUtility, ICanSendEvent, ICanRegisterEvent,ICanGetSystem
+public interface ISystem : IBelongToAchitecture, ICanSetArchitecture, ICanGetModel, ICanGetUtility, ICanSendEvent, ICanRegisterEvent,ICanGetSystem,ICanSendCommand
 {
     void Init();
 }
