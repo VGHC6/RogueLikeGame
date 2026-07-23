@@ -555,7 +555,209 @@ public class AttackState : IFSMState
 
 ---
 
-## 十一、RogueLikeGameEditor 注册
+## 十一、MoveState —— 移动计算与传递
+
+### 11.1 核心问题
+
+FSM 是纯逻辑层（System），**不能持有 Unity 引用**（Transform、CharacterController 等）。因此 `MoveState` 只负责"算"，不负责"动"——算完之后通过 Model 层把结果交给 ViewController 去执行实际的 Transform 位移。
+
+### 11.2 数据流
+
+```
+InputUtility.MoveInput (Vector2, 原始输入)
+        │
+        ▼
+MoveState.OnUpdate(arch, dt)
+        │
+        ├─ 1. 读取 MoveInput（读下层 Utility，方法调用，合规）
+        ├─ 2. 计算: movement = direction * speed * dt
+        ├─ 3. 写入: playerModel.MoveDelta = movement
+        └─ 4. 判断: 如果 MoveInput ≈ 0 → SendCommand<TryIdleCommand>()
+        │
+        ▼
+PlayerModel.MoveDelta (普通属性，非 BindableProperty)
+        │
+        ▼
+PlayerController.Update()
+        │  读 playerModel.MoveDelta，应用到 Transform.position / CharacterController.Move()
+```
+
+### 11.3 为什么不走 BindableProperty / Event ？
+
+移动量是**每帧连续变化的数据流**，不是离散的状态变更事件。如果每帧都触发 BindableProperty 回调或 SendEvent，会有不必要的委托开销。用**普通属性 + 轮询**更合适：
+
+| 场景 | 机制 | 理由 |
+|------|------|------|
+| 状态切换（Idle→Move） | Event / BindableProperty | 偶尔发生，需要立即通知多方面（动画、UI、音效） |
+| 每帧移动量 | 普通属性 / 轮询 | 每帧变化，只有 ViewController 关心，轮询开销更低 |
+
+### 11.4 PlayerModel 扩展
+
+```csharp
+public interface IPlayerModel : IModel
+{
+    BindableProperty<PlayerStateType> CurrentState { get; }
+    
+    /// <summary>本帧移动增量（世界坐标），由 MoveState 计算写入，由 ViewController 读取执行</summary>
+    Vector3 MoveDelta { get; set; }
+    
+    /// <summary>移动速度（米/秒）</summary>
+    float MoveSpeed { get; set; }
+}
+
+public class PlayerModel : AbstractModel, IPlayerModel
+{
+    public BindableProperty<PlayerStateType> CurrentState { get; } = new()
+    {
+        Value = PlayerStateType.Idle
+    };
+
+    public Vector3 MoveDelta { get; set; }     // 每帧覆盖，无需 BindableProperty
+    public float MoveSpeed { get; set; } = 5f; // 默认移动速度
+
+    protected override void OnInit() { }
+}
+```
+
+### 11.5 MoveState 实现
+
+```csharp
+public class MoveState : IFSMState
+{
+    public string AnimationName => "Move";
+    public PlayerStateType StateType => PlayerStateType.Move;
+
+    public void OnEnter(IAchitecture arch) { }
+
+    public void OnUpdate(IAchitecture arch, float dt)
+    {
+        var input = arch.GetUtility<IInputUtility>();
+        var model = arch.GetModel<IPlayerModel>();
+
+        // 1. 读输入
+        Vector2 rawInput = input.MoveInput; // (x, y), 0~1
+
+        // 2. 没有输入 → 回 Idle（走 Command 校验）
+        if (rawInput.magnitude < 0.01f)
+        {
+            model.MoveDelta = Vector3.zero;
+            arch.SendCommand<TryIdleCommand>();
+            return;
+        }
+
+        // 3. 有输入 → 攻击优先（走 Command 校验）
+        if (input.AttackPressed)
+        {
+            model.MoveDelta = Vector3.zero;
+            arch.SendCommand<TryAttackCommand>();
+            return;
+        }
+
+        // 4. 计算本帧移动增量
+        Vector3 direction = new Vector3(rawInput.x, 0f, rawInput.y).normalized;
+        Vector3 movement = direction * model.MoveSpeed * dt;
+
+        // 5. 写入 Model（ViewModel 会在 Update 里读取）
+        model.MoveDelta = movement;
+    }
+
+    public void OnExit(IAchitecture arch) 
+    {
+        // 退出移动时清零，防止残留移动
+        var model = arch.GetModel<IPlayerModel>();
+        model.MoveDelta = Vector3.zero;
+    }
+}
+```
+
+### 11.6 关键设计点
+
+**① 输入方向 → 世界方向**
+
+摇杆的 Y 轴（前后）映射到世界坐标 Z 轴：
+```
+摇杆 (x, y) → 世界 (x, 0, y)
+```
+这是因为 Unity 中 XZ 是水平面，Y 是高度。如果项目用 2D 俯视视角，则直接映射到 XY。
+
+**② 向量归一化**
+
+必须 `normalized`，否则斜向移动速度是 1.414 倍（对角线方向）。除非项目需要"原始摇杆幅度控制速度"，那就不归一化，直接用 `rawInput.magnitude` 作为速度倍率。
+
+**③ OnExit 清零**
+
+退出 Move 状态时必须把 `MoveDelta` 归零，防止下一帧 ViewController 读到残留值产生滑步。
+
+**④ 速度放 Model**
+
+`MoveSpeed` 存 Model 而不是硬编码在 MoveState，原因是：
+- 其他系统（Buff、装备、减速）可能需要修改速度，它们只能访问 Model
+- FSM 也可以从 Model 读到最新速度，无需额外通信
+
+**⑤ FSM 不碰 Transform**
+
+MoveState **绝不去 `GameObject.transform.position += movement`**。移动的执行必须由 `PlayerController`（ViewController 层）完成，因为：
+- FSM 是纯逻辑层，依赖 Unity API 会让单元测试不可测
+- 如果将来角色用 CharacterController 或 NavMeshAgent 移动，只需改 ViewController，FSM 不变
+
+### 11.7 ViewController 消费移动数据
+
+```csharp
+public class PlayerController : MonoBehaviour, IController
+{
+    private IInputUtility _inputUtility;
+    private IFSMSystem _fsmSystem;
+    private IPlayerModel _playerModel;
+
+    void Start()
+    {
+        _inputUtility = this.GetUtility<IInputUtility>();
+        _fsmSystem = this.GetSystem<IFSMSystem>();
+        _playerModel = this.GetModel<IPlayerModel>();
+    }
+
+    void Update()
+    {
+        // 1. 采集输入
+        _inputUtility.Tick();
+
+        // 2. 驱动状态机（MoveState 在本帧计算 MoveDelta 并写入 Model）
+        _fsmSystem.Tick(Time.deltaTime);
+
+        // 3. 读取 Model 中的移动量，执行位移
+        Vector3 delta = _playerModel.MoveDelta;
+        if (delta != Vector3.zero)
+        {
+            transform.position += delta; // 或 CharacterController.Move(delta)
+        }
+    }
+}
+```
+
+### 11.8 完整链路时序图
+
+```
+第 N 帧：
+┌─────────────────────────────────────────────────────────────┐
+│ PlayerController.Update()                                   │
+│                                                             │
+│  ① input.Tick()          → 读取 Unity Input，存到 Utility    │
+│                                                             │
+│  ② fsm.Tick(dt)          → 驱动 MoveState.OnUpdate()         │
+│       │                                                     │
+│       ├─ 读 input.MoveInput                                 │
+│       ├─ 算 movement = dir * speed * dt                     │
+│       ├─ 写 model.MoveDelta = movement                      │
+│       └─ 如果没输入 → SendCommand<TryIdleCommand>()          │
+│                                                             │
+│  ③ 读 model.MoveDelta    → transform.position += delta      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 十二、RogueLikeGameEditor 注册
 
 ```csharp
 public class RogueLikeGameEditor : Architecture<RogueLikeGameEditor>
@@ -576,7 +778,7 @@ public class RogueLikeGameEditor : Architecture<RogueLikeGameEditor>
 
 ---
 
-## 十二、设计要点总结
+## 十三、设计要点总结
 
 1. **层级从上到下**：ViewController → Command → System → Model → Utility，上层可获取下层，下层不访问上层
 2. **IController 修改状态必须走 Command**：不可直接调 System/Model 的写方法。Tick() 是驱动帧循环的例外
@@ -586,3 +788,4 @@ public class RogueLikeGameEditor : Architecture<RogueLikeGameEditor>
 6. **InputUtility 在最底层**：合并数据存储 + Unity Input 封装，不依赖任何上层
 7. **状态在 OnUpdate 中主动读输入**：不靠动画事件回调驱动状态切换
 8. **转换表**：用字典定义合法状态转换，避免 hardcode 条件判断
+9. **MoveState 只管算不管动**：移动量通过 Model 普通属性传递给 ViewController 执行，FSM 不碰 Transform。每帧数据用轮询而非 Event/BindableProperty

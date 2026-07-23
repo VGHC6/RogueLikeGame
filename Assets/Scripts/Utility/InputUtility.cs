@@ -1,26 +1,37 @@
-using System.Numerics;
+using UnityEngine;
+using UnityEngine.InputSystem;
 
 public interface IInputUtility : IUtility
 {
     Vector2 Move { get; }
     bool Attack { get; }
 
-    void Update();
+    void Awake();
+    void Enable();
+    void Disable();
 }
 
 public class InputUtility : IInputUtility
 {
-    public Vector2 Move { get; } =Vector2.Zero;
+    PlayerInput _playerInput;
 
-    public bool Attack { get; } =false;
+    public Vector2 Move => _playerInput.Player.Move.ReadValue<Vector2>();
+    public bool Attack => _playerInput.Player.Attack.ReadValue<float>() > 0.5f;
 
-    public IAchitecture GetArchitecture()
+    public IAchitecture GetArchitecture() => null;
+
+    public void Awake()
     {
-        return RogueLikeGame.Interface;
+        _playerInput = new PlayerInput();
     }
 
-    public void Update()
+    public void Enable()
     {
-        //“∆∂Ø ‰»Î
+        _playerInput.Enable();
+    }
+
+    public void Disable()
+    {
+        _playerInput.Disable();
     }
 }

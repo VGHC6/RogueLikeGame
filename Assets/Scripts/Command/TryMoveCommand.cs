@@ -1,3 +1,4 @@
+//ÇÐ»»×´Ì¬£¬ÒÆ¶¯
 public class TryMoveCommand : AbstractCommand
 {
     protected override void OnExcute()

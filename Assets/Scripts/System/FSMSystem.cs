@@ -1,33 +1,22 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
 
 public interface IFSMSystem : ISystem
 {
-    IFSMState _currentState { get; }//当前状态
-    void Update(float deltaTime);//更新状态
-
-    void ChangeState<T>() where T : IFSMState, new();//切换状态
+    IFSMState _currentState { get; }
+    void Update(float deltaTime);
+    void FixUpdate(float deltaTime);
+    void ChangeState<T>() where T : class, IFSMState;
 }
 
 
 public class FSMSystem : AbstractSystem, IFSMSystem
 {
-    public IFSMState _currentState { get; private set; }//当前状态
-    public PlayerStateType _stateType { get; private set; }//状态类型
-    private Dictionary<string, IFSMState> _States = new Dictionary<string, IFSMState>();//状态字典
-    private PlayerModel _playerModel;
+    public IFSMState _currentState { get; private set; }
+    private IPlayerModel _playerModel;
+
     protected override void OnInit()
     {
-        InsertState();//插入状态
-        _currentState = new FsmIdleState();//初始化当前状态
-        _playerModel = this.GetModel<PlayerModel>();//获取玩家模型
-    }
-
-    private void InsertState()
-    {
-        _States.Add("Idle", new FsmIdleState());
-        _States.Add("Move", new FsmMoveState());
+        _currentState = this.GetSystem<FsmIdleState>();
+        _playerModel = this.GetModel<IPlayerModel>();
     }
 
     public void Update(float deltaTime)
@@ -35,19 +24,23 @@ public class FSMSystem : AbstractSystem, IFSMSystem
         _currentState?.OnUpdate(deltaTime);
     }
 
-    public void ChangeState<T>() where T : IFSMState, new()
+    public void FixUpdate(float deltaTime)
     {
-        var newState = new T();//创建新状态
-        var newStateType = newState.StateType;//获取新状态类型
+        _currentState?.OnFixUpdate(deltaTime);
+    }
 
-        _currentState.OnExit();//退出当前状态
-        _currentState = newState;//切换状态
-        _stateType = newStateType;//切换状态类型
-        _currentState.OnEnter();//进入新状态
+    public void ChangeState<T>() where T : class, IFSMState
+    {
+        var newState = this.GetSystem<T>();
+        var newStateType = newState.StateType;
 
-        _playerModel._currentState.Value = newStateType;//更新玩家模型状态
+        if (_currentState != null) _currentState.OnExit();
 
-        //发送事件
+        _currentState = newState;
+        _currentState.OnEnter();
+
+        _playerModel._currentState.Value = newStateType;
+
         this.SendEvent(new PlayerStateChangedEvent
         {
             StateType = newStateType,

@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public enum PlayerStateType
 {
     Idle,
@@ -5,11 +7,13 @@ public enum PlayerStateType
     Move,
     Hurt
 }
+
 public interface IPlayerModel : IModel
 {
-    BindableProperty<PlayerStateType> _currentState { get; }//´æ´¢µ±Ç°×´Ì¬
+    BindableProperty<PlayerStateType> _currentState { get; }
+    Vector2 MoveDelta { get; set; }
+    float MoveSpeed { get; set; }
 }
-
 
 public class PlayerModel : AbstractModel, IPlayerModel
 {
@@ -17,6 +21,8 @@ public class PlayerModel : AbstractModel, IPlayerModel
     {
         Value = PlayerStateType.Idle
     };
+    public Vector2 MoveDelta { get; set; }
+    public float MoveSpeed { get; set; } = 5f;
 
     protected override void OnInit()
     { }

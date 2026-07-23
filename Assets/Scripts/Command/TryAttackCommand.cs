@@ -1,3 +1,4 @@
+//ÇÐ»»×´Ì¬£¬¹¥»÷
 public class TryAttackCommand : AbstractCommand
 {
     protected override void OnExcute()

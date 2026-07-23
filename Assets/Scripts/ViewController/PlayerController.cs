@@ -1,21 +1,45 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-//调度 InputUtility 采集输入，调度 FSMSystem 驱动状态机。
 public class PlayerController : MonoBehaviour, IController
 {
-    private IInputUtility _inputUtility;//采集输入,位于工具层
-    private IFSMSystem _fsmSystem;//驱动状态机，位于逻辑层
-    public IAchitecture GetArchitecture()
+    private IInputUtility _inputUtility;
+    private IFSMSystem _fsmSystem;
+    private IPlayerModel _playerModel;
+
+    private Rigidbody2D _rigidbody2D;
+    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
+
+    public void Awake()
     {
-        return RogueLikeGame.Interface;//获取架构
+        _inputUtility = this.GetUtility<IInputUtility>();
+        _fsmSystem = this.GetSystem<IFSMSystem>();
+        _playerModel = this.GetModel<IPlayerModel>();
+
+        _rigidbody2D=this.GetComponent<Rigidbody2D>();//物理组件
+
+        _inputUtility.Awake();
+    }
+
+    public void OnEnable()
+    {
+        _inputUtility.Enable();
     }
 
     public void Update()
     {
-        _inputUtility.Update();//采集输入,业务逻辑
-        _fsmSystem.Update(Time.deltaTime);//驱动状态机,业务逻辑
+        _fsmSystem.Update(Time.deltaTime);
     }
 
+    public void FixedUpdate()
+    {
+        _fsmSystem.FixUpdate(Time.fixedDeltaTime);
+
+        _rigidbody2D.velocity = _playerModel.MoveDelta;//设置刚体的速度
+
+    }
+
+    public void OnDisable()
+    {
+        _inputUtility.Disable();
+    }
 }
