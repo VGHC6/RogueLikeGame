@@ -89,18 +89,19 @@ public class FsmMoveState : AbstractSystem, IFSMState
 
     public void OnFixUpdate(float datetime)
     {
-        var model = this.GetModel<IPlayerModel>();//这个后续要重构,不应该在System直接修改Model
+        var model = this.GetModel<IPlayerModel>();
         var input = this.GetUtility<IInputUtility>();
 
-        Vector2 direction = new Vector3(input.Move.x, 0f, input.Move.y).normalized;//方位
+        Vector2 direction = new Vector3(input.Move.x, input.Move.y).normalized;//方位
         Vector3 movement = direction * model.MoveSpeed;
 
-        model.MoveDelta = movement;
+        model.MoveDelta = movement;//这个后续要重构,不应该在System直接修改Model
     }
 
     public void OnExit()
     {
-        Debug.Log("OnExit FsmMoveState");
+        var model = this.GetModel<IPlayerModel>();
+        model.MoveDelta = Vector3.zero;//这个后续要重构,不应该在System直接修改Model
     }
 
     protected override void OnInit() { }
@@ -116,7 +117,7 @@ public class FsmAttackState : AbstractSystem, IFSMState
     public PlayerStateType StateType { get; } = PlayerStateType.Attack;
 
     private float _elapsedTime;
-    private const float AttackDuration = 0.517f;
+    private const float AttackDuration = 0.5f;
 
     public void OnEnter()
     {
@@ -130,13 +131,13 @@ public class FsmAttackState : AbstractSystem, IFSMState
 
         var input = this.GetUtility<IInputUtility>();
 
-        if (Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f)
-        {
-            this.SendCommand<TryMoveCommand>();
-        }
-        else if (_elapsedTime >= AttackDuration)
+        if (_elapsedTime >= AttackDuration)
         {
             this.SendCommand<TryIdleCommand>();
+        }
+        else if ((Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f) && _elapsedTime >= AttackDuration)
+        {
+            this.SendCommand<TryMoveCommand>();
         }
     }
 
