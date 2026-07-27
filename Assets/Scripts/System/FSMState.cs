@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Windows;
 
 public interface IFSMState : ISystem
 {
@@ -13,95 +12,53 @@ public interface IFSMState : ISystem
 
 
 /// <summary>
-/// ����״̬
+/// 待机状态。纯生命周期，输入判断由 PlayerController（IController）负责。
 /// </summary>
 public class FsmIdleState : AbstractSystem, IFSMState
 {
     public string AnimationName { get; } = "Idle";
     public PlayerStateType StateType { get; } = PlayerStateType.Idle;
 
-    private bool _prevAttack;
+    public void OnEnter() { }
 
-    public void OnEnter()
-    {
-        _prevAttack = this.GetUtility<IInputUtility>().Attack;
-        Debug.Log("OnEnter FsmIdleState");
-    }
-
-    public void OnUpdate(float datetime)
-    {
-        var input = this.GetUtility<IInputUtility>();
-
-        if (input.Attack && !_prevAttack)
-        {
-            this.SendCommand<TryAttackCommand>();
-        }
-        else if (Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f)
-        {
-            this.SendCommand<TryMoveCommand>();
-        }
-
-        _prevAttack = input.Attack;
-    }
+    public void OnUpdate(float datetime) { }
 
     public void OnFixUpdate(float datetime) { }
 
-    public void OnExit()
-    {
-        Debug.Log("OnExit FsmIdleState");
-    }
+    public void OnExit() { }
 
     protected override void OnInit() { }
 }
 
 
 /// <summary>
-/// �ƶ�״̬
+/// 移动状态。OnFixUpdate 读 Utility 计算移动量（上层→下层数据查询，合规）。
+/// 输入驱动的状态切换由 PlayerController 发 Command 完成。
 /// </summary>
 public class FsmMoveState : AbstractSystem, IFSMState
 {
     public string AnimationName { get; } = "Move";
     public PlayerStateType StateType { get; } = PlayerStateType.Move;
 
-    private bool _prevAttack;
+    public void OnEnter() { }
 
-    public void OnEnter()
-    {
-        _prevAttack = this.GetUtility<IInputUtility>().Attack;
-        Debug.Log("OnEnter FsmMoveState");
-    }
-
-    public void OnUpdate(float datetime)
-    {
-        var input = this.GetUtility<IInputUtility>();
-
-        if (input.Attack && !_prevAttack)
-        {
-            this.SendCommand<TryAttackCommand>();
-        }
-        else if (Mathf.Abs(input.Move.x) <= 0.1f && Mathf.Abs(input.Move.y) <= 0.1f)
-        {
-            this.SendCommand<TryIdleCommand>();
-        }
-
-        _prevAttack = input.Attack;
-    }
+    public void OnUpdate(float datetime) { }
 
     public void OnFixUpdate(float datetime)
     {
         var model = this.GetModel<IPlayerModel>();
         var input = this.GetUtility<IInputUtility>();
 
-        Vector2 direction = new Vector3(input.Move.x, input.Move.y).normalized;//��λ
+        Vector2 direction = new Vector2(input.Move.x, input.Move.y).normalized;
         Vector3 movement = direction * model.MoveSpeed;
 
-        model.MoveDelta = movement;//�������Ҫ�ع�,��Ӧ����Systemֱ���޸�Model
+        model.MoveDelta = movement;
     }
 
     public void OnExit()
     {
         var model = this.GetModel<IPlayerModel>();
-        model.MoveDelta = Vector3.zero;//�������Ҫ�ع�,��Ӧ����Systemֱ���޸�Model
+        model.MoveDelta = Vector3.zero;
     }
 
     protected override void OnInit() { }
@@ -109,7 +66,8 @@ public class FsmMoveState : AbstractSystem, IFSMState
 
 
 /// <summary>
-/// ����״̬
+/// 攻击状态。管理攻击计时和判定帧。
+/// 攻击结束自动回 Idle（时间驱动，System → System 直接调用）。
 /// </summary>
 public class FsmAttackState : AbstractSystem, IFSMState
 {
@@ -117,36 +75,86 @@ public class FsmAttackState : AbstractSystem, IFSMState
     public PlayerStateType StateType { get; } = PlayerStateType.Attack;
 
     private float _elapsedTime;
+    private bool _hitChecked;
+    private const float HitCheckTime = 0.25f;
     private const float AttackDuration = 0.5f;
 
     public void OnEnter()
     {
         _elapsedTime = 0f;
-        Debug.Log("OnEnter FsmAttackState");
+        _hitChecked = false;
     }
 
     public void OnUpdate(float datetime)
     {
         _elapsedTime += datetime;
 
-        var input = this.GetUtility<IInputUtility>();
+        if (!_hitChecked && _elapsedTime >= HitCheckTime)
+        {
+            _hitChecked = true;
+            this.SendEvent(new RequestAttackHitCheckEvent());
+        }
 
         if (_elapsedTime >= AttackDuration)
         {
-            this.SendCommand<TryIdleCommand>();
-        }
-        else if ((Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f) && _elapsedTime >= AttackDuration)
-        {
-            this.SendCommand<TryMoveCommand>();
+            this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
         }
     }
 
     public void OnFixUpdate(float datetime) { }
 
-    public void OnExit()
-    {
-        Debug.Log("OnExit FsmAttackState");
-    }
+    public void OnExit() { }
 
     protected override void OnInit() { }
+}
+
+/// <summary>
+/// 受伤状态
+/// </summary>
+public class FsmHurtState : AbstractSystem, IFSMState
+{
+    public string AnimationName { get; } = "Hurt";
+
+    public PlayerStateType StateType { get; } = PlayerStateType.Hurt;
+
+    private float _elapsed;
+    private const float HurtDuration = 0.4f;//伤害时间
+
+    protected override void OnInit()
+    {
+        //throw new System.NotImplementedException();
+    }
+
+    public void OnEnter()
+    {
+        _elapsed = 0f;
+    }
+
+    public void OnUpdate(float datetime)
+    {
+        _elapsed += datetime;
+
+        if (_elapsed >= HurtDuration)
+        {
+            var combat = this.GetModel<ICombatModel>();
+            if (combat.IsDead.Value)
+            {
+                this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
+            }
+            else
+            {
+                this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
+            }
+        }
+    }
+
+    public void OnFixUpdate(float datetime)
+    {
+        //throw new System.NotImplementedException();
+    }
+
+    public void OnExit()
+    {
+        //throw new System.NotImplementedException();
+    }
 }

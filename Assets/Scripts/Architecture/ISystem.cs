@@ -1,5 +1,5 @@
-//ϵͳ��ӿ�
-public interface ISystem : IBelongToAchitecture, ICanSetArchitecture, ICanGetModel, ICanGetUtility, ICanSendEvent, ICanRegisterEvent,ICanGetSystem,ICanSendCommand
+//系统层接口
+public interface ISystem : IBelongToAchitecture, ICanSetArchitecture, ICanGetModel, ICanGetUtility, ICanSendEvent, ICanRegisterEvent,ICanGetSystem
 {
     void Init();
 }

@@ -1,4 +1,3 @@
-//�ܹ����
 public class RogueLikeGame : Architecture<RogueLikeGame>
 {
     protected override void Init()
