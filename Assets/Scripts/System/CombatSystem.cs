@@ -1,4 +1,4 @@
-// 战斗系统
+// 战锟斤拷系统
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,27 +10,23 @@ public struct DamageResult
 
 public interface ICombatSystem : ISystem
 {
-    /// <summary>
-    /// 受击处理
-    /// </summary>
-    /// <param name="RawDamage"></param>
-    /// <returns></returns>
-    DamageResult ApplyDamage(int RawDamage);//造成伤害
+
+    DamageResult ApplyDamage(ICombatModel targetCombat, int rawDamage);
 }
 
 public class CombatSystem : AbstractSystem, ICombatSystem
 {
-    public DamageResult ApplyDamage(int RawDamage)
+    public DamageResult ApplyDamage(ICombatModel targetCombat, int rawDamage)
     {
-        var combat = this.GetModel<CombatModel>();
-        int finalDamage = Mathf.Max(1, RawDamage - combat.DefensePower.Value);
-        bool dead = combat.CurrentHp.Value <= 0;
-        combat.IsDead.Value = dead;
+        int finalDamage = Mathf.Max(1, rawDamage - targetCombat.DefensePower.Value);
+        targetCombat.CurrentHp.Value = Mathf.Max(0, targetCombat.CurrentHp.Value - finalDamage);
+        bool dead = targetCombat.CurrentHp.Value <= 0;
+        targetCombat.IsDead.Value = dead;
 
-        //发射伤害事件
+        
         this.SendEvent(new DamageEvent
         {
-            RawDamage = RawDamage,
+            RawDamage = rawDamage,
             FinalDamage = finalDamage,
             IsDead = dead,
         });
@@ -42,8 +38,5 @@ public class CombatSystem : AbstractSystem, ICombatSystem
         };
     }
 
-    protected override void OnInit()
-    {
-        throw new System.NotImplementedException();
-    }
+    protected override void OnInit(){}
 }

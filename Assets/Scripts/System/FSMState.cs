@@ -46,7 +46,7 @@ public class FsmMoveState : AbstractSystem, IFSMState
 
     public void OnFixUpdate(float datetime)
     {
-        var model = this.GetModel<IPlayerModel>();
+        var model = this.GetModel<IEntityModel>();
         var input = this.GetUtility<IInputUtility>();
 
         Vector2 direction = new Vector2(input.Move.x, input.Move.y).normalized;
@@ -57,7 +57,7 @@ public class FsmMoveState : AbstractSystem, IFSMState
 
     public void OnExit()
     {
-        var model = this.GetModel<IPlayerModel>();
+        var model = this.GetModel<IEntityModel>();
         model.MoveDelta = Vector3.zero;
     }
 

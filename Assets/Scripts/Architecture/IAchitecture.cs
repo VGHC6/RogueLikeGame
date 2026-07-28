@@ -35,6 +35,11 @@ public interface IAchitecture
     void UnRegisterEvent<T>(Action<T> OnEvent);//取消注册事件
 }
 
+
+/// <summary>
+/// 架构基类,单例
+/// </summary>
+/// <typeparam name="T"></typeparam>
 public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, new()//子类把自己的类型作为泛型参数传给父类,泛型 T 必须是 Architecture<T> 的子类
 {
     private static T _achitecture;//静态变量,用于存储当前实例
@@ -188,6 +193,114 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
     /// <typeparam name="T"></typeparam>
     /// <exception></exception>
     public ITypeEventSystem _typeEventSystem = new TypeEventSystem<T>();
+    public void SendEvent<T>() where T : new()
+    {
+        _typeEventSystem.Send<T>();
+    }
+
+    public void SendEvent<T>(T e)
+    {
+        _typeEventSystem.Send<T>(e);
+    }
+
+    public IUnRegister RegisterEvent<T>(Action<T> OnEvent)
+    {
+        return _typeEventSystem.Register<T>(OnEvent);
+    }
+
+    public void UnRegisterEvent<T>(Action<T> OnEvent)
+    {
+        _typeEventSystem.UnRegister<T>(OnEvent);
+    }
+}
+
+
+
+
+/// <summary>
+/// 非实例实现
+/// </summary>
+public class EntityArchitecture : IAchitecture
+{
+    private IOCContainer _container = new IOCContainer();//容器
+    private IAchitecture _parent;//父架构
+
+    private List<IModel> _models = new List<IModel>();//用于初始化数据层
+    private List<ISystem> _systems = new List<ISystem>();//用于初始化系统层
+
+    private ITypeEventSystem _typeEventSystem = new TypeEventSystem<EntityArchitecture>();//事件系统
+
+
+    public EntityArchitecture(IAchitecture parent)//构造函数
+    {
+        _parent = parent;
+    }
+
+    protected void InitEntities()//初始化
+    {
+        foreach (var system in _systems) system.Init();
+        _systems.Clear();
+        foreach (var model in _models) model.Init();
+        _models.Clear();
+    }
+
+
+    // ========== 查找：先本地，后父级 ==========
+
+    public T GetModel<T>() where T : class, IModel
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetModel<T>();//先本地，后父级
+    }
+
+    public T GetSystem<T>() where T : class, ISystem
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetSystem<T>();//先本地，后父级
+    }
+
+    public T GetUtility<T>() where T : class, IUtility
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetUtility<T>();//先本地，后父级
+    }
+
+    // ========== 注册（同 Architecture<T> 的模式） ==========
+    public void RegisterModel<T>(T instance) where T : IModel
+    {
+        instance.SetArchitecture(this);
+        _container.Register<T>(instance);//注册数据层
+        _models.Add(instance);//如果没有注册就先存起来
+    }
+
+    public void RegisterSystem<T>(T instance) where T : ISystem
+    {
+        instance.SetArchitecture(this);
+        _container.Register<T>(instance);//注册数据层
+        _systems.Add(instance);//如果没有注册就先存起来
+    }
+
+    public void RegisterUtility<T>(T instance) where T : IUtility
+    {
+        _container.Register<T>(instance);//注册数据层
+    }
+
+    // ========== Command（走本地架构） ==========
+    public void SendCommand<T>() where T : ICommand, new()
+    {
+        var command = new T();
+        command.SetArchitecture(this);//这个this是为了得到这个架构
+        command.Excute();
+    }
+
+    public void SendCommand<T>(T command) where T : ICommand
+    {
+        command.SetArchitecture(this);
+        command.Excute();
+    }
+
+
+    // ========== 事件（走本地总线，实体间隔离） ==========
     public void SendEvent<T>() where T : new()
     {
         _typeEventSystem.Send<T>();

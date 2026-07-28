@@ -8,14 +8,14 @@ public enum PlayerStateType
     Hurt
 }
 
-public interface IPlayerModel : IModel
+public interface IEntityModel : IModel//框架底层接口
 {
     BindableProperty<PlayerStateType> _currentState { get; }
     Vector2 MoveDelta { get; set; }
     float MoveSpeed { get; set; }
 }
 
-public class PlayerModel : AbstractModel, IPlayerModel
+public class EntityModel : AbstractModel, IEntityModel//实体特有接口
 {
     public BindableProperty<PlayerStateType> _currentState { get; } = new BindableProperty<PlayerStateType>()
     {

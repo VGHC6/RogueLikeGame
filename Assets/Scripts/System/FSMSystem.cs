@@ -11,12 +11,12 @@ public interface IFSMSystem : ISystem
 public class FSMSystem : AbstractSystem, IFSMSystem
 {
     public IFSMState _currentState { get; private set; }
-    private IPlayerModel _playerModel;
+    private IEntityModel _playerModel;
 
     protected override void OnInit()
     {
         _currentState = this.GetSystem<FsmIdleState>();
-        _playerModel = this.GetModel<IPlayerModel>();
+        _playerModel = this.GetModel<IEntityModel>();
     }
 
     public void Update(float deltaTime)

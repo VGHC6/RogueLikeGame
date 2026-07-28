@@ -2,542 +2,347 @@
 
 ## 项目架构总览
 
-本项目的架构为 **QFramework 风格的 MVCS** 分层，以 `Architecture<T>` 单例作为 IoC 枢纽。
-
-层级从 **上到下** 依次为：
+本项目的架构为 **QFramework 风格的 MVCS** 分层。核心变化：引入 `EntityArchitecture`（非单例版 `IAchitecture`），每个实体持有一个。
 
 ```
-RogueLikeGameEditor (Architecture<T> 单例)
+全局 RogueLikeGame.Interface（Architecture<T> 单例）
 │
-├── ViewController 层 (IController)    ← 表现层：MonoBehaviour，接收输入、更新表现
-│   ├── PlayerController               ← 调度层：驱动 Utility 和 FSM
-│   └── PlayerAnimationController      ← 订阅事件，驱动 Animator
+├── IInputUtility           ← 全局唯一（输入设备只有一套）
+├── ICombatSystem           ← 全局唯一（伤害公式纯计算，不区分实体）
 │
-├── Command 层 (ICommand)              ← 可校验的一次性动作，不能有状态
-│   ├── TryAttackCommand               ← 尝试攻击
-│   ├── TryMoveCommand                 ← 尝试移动
-│   └── TryIdleCommand                 ← 回到 Idle
+├── PlayerController  ──→  PlayerArchitecture : EntityArchitecture
+│   │                         ├── IEntityModel         ← Player 自己的移动数据
+│   │                         ├── ICombatModel         ← Player 自己的 HP/攻击力
+│   │                         ├── FsmIdleState         ← Player 自己的状态实例
+│   │                         ├── FsmMoveState
+│   │                         ├── FsmAttackState
+│   │                         ├── FsmHurtState
+│   │                         └── IFSMSystem           ← Player 自己的状态机
+│   │
+│   └── GetArchitecture() → _architecture（Player 自己的 IoC）
 │
-├── System 层 (ISystem)                ← 系统层：业务逻辑，纯 C#，无 MonoBehaviour
-│   └── FSMSystem                      ← 状态机系统（Tick + ChangeState + 转换表）
+├── EnemyController   ──→  EnemyArchitecture : EntityArchitecture
+│   │                         ├── IEntityModel         ← Enemy 自己的移动数据
+│   │                         ├── ICombatModel         ← Enemy 自己的 HP/攻击力
+│   │                         ├── FsmIdleState         ← Enemy 自己的状态实例
+│   │                         ├── FsmMoveState
+│   │                         ├── FsmAttackState
+│   │                         ├── FsmHurtState
+│   │                         └── IFSMSystem           ← Enemy 自己的状态机
+│   │
+│   └── GetArchitecture() → _architecture（Enemy 自己的 IoC）
 │
-├── Model 层 (IModel)                  ← 模型层：数据定义与存储
-│   └── PlayerModel                    ← 玩家状态数据（BindableProperty）
-│
-└── Utility 层 (IUtility)              ← 工具层：基础设施，封装平台依赖
-    └── InputUtility                   ← 输入数据容器 + Unity Input 封装
+└── CombatUIController ──→  RogueLikeGame.Interface（全局，收 DamageEvent）
 ```
 
-> **关键认知**：`ISystem` 只有 `Init()`，没有 `Update`。System 层不会自己每帧运行，必须由 MonoBehaviour 在 `Update` 中驱动。
+> **核心设计**：FSM 状态类、FSMSystem、EntityModel、CombatModel **一行代码不改**，仍然 `RegisterSystem` / `GetSystem` / `SendCommand` / `SendEvent`，API 完全不变。唯一区别是它们被注册在实体自己的 `EntityArchitecture` 里，而非全局单例里。
 
 ---
 
-## 一、层级通信规则
+## 一、EntityArchitecture
 
-上层可以获取下层对象，下层不能获取上层对象。通信方向：
+非单例的 `IAchitecture` 实现。API 和 `Architecture<T>` 完全一致。
 
-```
-ViewController (IController)          ← 顶层
-    │
-    │  ★ 修改 ISystem/IModel 状态 → 必须走 Command
-    │  ★ 查询数据 → 可 GetSystem/GetModel/GetUtility
-    │  ★ 监听变化 → RegisterEvent 或 BindableProperty
-    │
-    ▼
-Command (ICommand)                    ← 无状态、一次性
-    │
-    │  ★ 可 GetSystem/GetModel（校验用）
-    │
-    ▼
-System (ISystem)                      ← 业务逻辑
-    │
-    │  ★ 向下可 GetModel/GetUtility（方法调用）
-    │  ★ 向上通知 IController → SendEvent / BindableProperty
-    │
-    ▼
-Model (IModel)                        ← 数据层
-    │
-    │  ★ 向上通知 → BindableProperty
-    │
-    ▼
-Utility (IUtility)                    ← 工具层，基础设施（底层层）
-    │
-    ★ 不获取任何上层对象
-```
-
-| 规则 | 说明 |
-|------|------|
-| IController 更改 ISystem/IModel 状态 | **必须用 Command**，不能直接调方法 |
-| IController 查询数据 | 可直接 GetSystem / GetModel / GetUtility |
-| ISystem/IModel → IController 通知 | **必须用 Event 或 BindableProperty** |
-| ICommand | **不能有状态**（无字段、无属性） |
-| 上层 → 下层 | 方法调用（IController 除外，它必须走 Command） |
-| 下层 → 上层 | 事件（Event / BindableProperty） |
-
-> **什么是"业务状态变更"？** 指修改 Model/Sysem 中直接影响游戏逻辑的数据——切换状态、改变 HP、增减体力等。这些操作需要前置校验（比如"当前状态能不能切换到攻击？"），所以必须走 Command。`Tick()` 只是推进一帧让 FSM 自己检查输入做决策，Tick 本身不修改任何数据，不属业务变更，允许直接调。
-
----
-
-## 二、层级归属
-
-| 类 | 所属层 | 父类/接口 | 职责 |
-|----|--------|-----------|------|
-| `IFSMSystem` / `FSMSystem` | **System** | `ISystem` / `AbstractSystem` | 管理状态切换、转换表校验、Tick 驱动当前状态 |
-| `IFSMState` | **System** | 独立接口（不继承 ISystem） | 单个状态的定义（OnEnter/OnUpdate/OnExit） |
-| `PlayerModel` | **Model** | `IModel` / `AbstractModel` | 用 `BindableProperty` 存当前状态枚举 |
-| `IInputUtility` / `InputUtility` | **Utility** | `IUtility` | 输入数据存储 + Unity Input API 封装 |
-| `PlayerController` | **ViewController** | `MonoBehaviour` + `IController` | 调度层：调 Tick，发 Command |
-| `PlayerAnimationController` | **ViewController** | `MonoBehaviour` + `IController` | 持有 `Animator`，订阅事件播动画 |
-
-> **核心原则**：FSM 不持有 Unity 引用（Animator、Transform 等），与 Unity 交互全交给 ViewController / Utility。
-
----
-
-## 三、每帧完整流程
+### 1.1 查找规则：先本地，后父级
 
 ```
-PlayerController.Update()                         ← IController，唯一输入→Command 入口
-  │
-  ├── 1. 读输入（IController 查询 Utility，合规）
-  │     var input = this.GetUtility<IInputUtility>();
-  │
-  ├── 2. 根据输入 + 当前状态判断切换（IController 发 Command）
-  │     if (attackPressed)  this.SendCommand<TryAttackCommand>();
-  │     if (hasMoveInput)   this.SendCommand<TryMoveCommand>();
-  │     if (!hasMoveInput)  this.SendCommand<TryIdleCommand>();
-  │
-  ├── 3. 驱动 FSM 状态机（Tick 例外，允许直接调）
-  │     _fsmSystem.Update(Time.deltaTime)
-  │       │
-  │       └── 当前状态.OnUpdate(dt)  ← 纯生命周期：计时、判定帧等内部逻辑
-  │                                   不读输入、不发 Command
-  │
-  └── 4. 应用移动量到 Transform
-        _rigidbody2D.velocity = _playerModel.MoveDelta
-
-
-如果 PlayerController 发出了 Command：
-
-  TryAttackCommand.OnExcute()
-    │  var fsm = this.GetSystem<IFSMSystem>();
-    │  if (fsm._currentState.StateType == PlayerStateType.Attack) return; // 校验
-    │  fsm.ChangeState<FsmAttackState>();  // Command → System 方法调用
-    ▼
-  FSMSystem.ChangeState<T>()
-    │  _currentState.OnExit()              ← 旧状态退出
-    │  _currentState = newState            ← 切换
-    │  newState.OnEnter()                  ← 新状态进入
-    │  _playerModel._currentState.Value = newStateType  ← 写 Model
-    │  this.SendEvent(new PlayerStateChangedEvent{...})  ← System → 上层：事件
-    ▼
-  PlayerAnimationController (IController) 收到事件
-    │  _animator.CrossFade(e.AnimationName, 0.1f)
+this.GetSystem<FsmMoveState>()        ← 本地容器有 → 返回 Player 自己的实例
+this.GetModel<IEntityModel>()         ← 本地容器有 → 返回 Player 自己的数据
+this.GetUtility<IInputUtility>()      ← 本地没有   → 回退到父级（全局 IoC）
+this.SendCommand<TryMoveCommand>()    ← 走本地架构 → Command.SetArchitecture(this)
+this.SendEvent(PlayerStateChanged)    ← 走本地事件总线 → 不会串到其他实体
 ```
 
----
-
-## 四、状态机内部设计
-
-### 4.1 状态接口（IFSMState）
-
-每个具体状态继承 `AbstractSystem`，通过 IoC 获取。不读输入、不发 Command。
+### 1.2 实现
 
 ```csharp
-/// <summary>
-/// FSM 状态的基接口。每个具体状态继承 AbstractSystem，通过 IoC 获取。
-/// 状态只负责生命周期（OnEnter/OnUpdate/OnExit）和内部逻辑（计时、判定帧），
-/// 不读输入、不发 Command。输入驱动的切换由 PlayerController（IController）通过 Command 完成。
-/// </summary>
-public interface IFSMState : ISystem
+public abstract class EntityArchitecture : IAchitecture
 {
-    /// <summary>Animator 里对应的动画状态名，如 "Idle"、"Attack"、"Hurt"</summary>
-    string AnimationName { get; }
+    private IOCContainer _container = new IOCContainer();
+    private IAchitecture _parent;
 
-    /// <summary>当前状态枚举</summary>
-    PlayerStateType StateType { get; }
+    private List<IModel> _models = new List<IModel>();
+    private List<ISystem> _systems = new List<ISystem>();
 
-    /// <summary>进入状态时调用一次</summary>
-    void OnEnter();
+    private ITypeEventSystem _typeEventSystem = new TypeEventSystem<EntityArchitecture>();
 
-    /// <summary>每帧由 FSMSystem.Update 调用，处理计时等内部逻辑</summary>
-    void OnUpdate(float deltaTime);
+    public EntityArchitecture(IAchitecture parent = null)
+    {
+        _parent = parent;
+    }
 
-    /// <summary>每物理帧由 FSMSystem.FixUpdate 调用</summary>
-    void OnFixUpdate(float deltaTime);
+    /// <summary>子类在构造中调 Register，构造完成后调此方法完成初始化</summary>
+    protected void InitEntities()
+    {
+        foreach (var system in _systems) system.Init();
+        _systems.Clear();
+        foreach (var model in _models) model.Init();
+        _models.Clear();
+    }
 
-    /// <summary>退出状态时调用一次</summary>
-    void OnExit();
+    // ========== 查找：先本地，后父级 ==========
+
+    public T GetModel<T>() where T : class, IModel
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetModel<T>();
+    }
+
+    public T GetSystem<T>() where T : class, ISystem
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetSystem<T>();
+    }
+
+    public T GetUtility<T>() where T : class, IUtility
+    {
+        var result = _container.Get<T>();
+        return result ?? _parent?.GetUtility<T>();
+    }
+
+    // ========== 注册（同 Architecture<T> 的模式） ==========
+
+    public void RegisterModel<T>(T instance) where T : IModel
+    {
+        instance.SetArchitecture(this);
+        _container.Register<T>(instance);
+        _models.Add(instance);
+    }
+
+    public void RegisterSystem<T>(T instance) where T : ISystem
+    {
+        instance.SetArchitecture(this);
+        _container.Register<T>(instance);
+        _systems.Add(instance);
+    }
+
+    public void RegisterUtility<T>(T instance) where T : IUtility
+    {
+        _container.Register<T>(instance);
+    }
+
+    // ========== Command（走本地架构） ==========
+
+    public void SendCommand<T>() where T : ICommand, new()
+    {
+        var command = new T();
+        command.SetArchitecture(this);
+        command.Excute();
+    }
+
+    public void SendCommand<T>(T command) where T : ICommand
+    {
+        command.SetArchitecture(this);
+        command.Excute();
+    }
+
+    // ========== 事件（走本地总线，实体间隔离） ==========
+
+    public void SendEvent<T>() where T : new()
+    {
+        _typeEventSystem.Send<T>();
+    }
+
+    public void SendEvent<T>(T e)
+    {
+        _typeEventSystem.Send<T>(e);
+    }
+
+    public IUnRegister RegisterEvent<T>(Action<T> OnEvent)
+    {
+        return _typeEventSystem.Register<T>(OnEvent);
+    }
+
+    public void UnRegisterEvent<T>(Action<T> OnEvent)
+    {
+        _typeEventSystem.UnRegister<T>(OnEvent);
+    }
 }
 ```
 
-> **关键约束**：状态**不读输入**、**不发 Command**。输入判断全部在 PlayerController（IController）中完成。时间驱动的自动切换（如攻击 0.5s 后回 Idle）通过 `this.GetSystem<IFSMSystem>().ChangeState<T>()` 直接调用（System → System 方法调用，合规）。
+> **本地事件总线的意义**：`FSMSystem.ChangeState` 发送的 `PlayerStateChangedEvent` 只在当前实体的架构内传播。Player 的动画控制器订阅 Player 架构的事件，Enemy 的动画控制器订阅 Enemy 架构的事件——天然隔离，不需要 `EntityId` 过滤。
 
-### 4.2 FSMSystem 接口
+---
 
-```csharp
-public interface IFSMSystem : ISystem
-{
-    /// <summary>每帧由 PlayerController 调用，驱动当前状态</summary>
-    void Tick(float deltaTime);
-
-    /// <summary>当前运行中的状态</summary>
-    IFSMState CurrentState { get; }
-
-    /// <summary>当前状态枚举（方便订阅）</summary>
-    PlayerStateType CurrentStateType { get; }
-
-    /// <summary>切换状态。allowSameState=false 时同状态忽略</summary>
-    bool ChangeState<T>(bool allowSameState = false) where T : IFSMState, new();
-
-    /// <summary>查询是否可以切换到某状态（用于 Command 校验）</summary>
-    bool CanTransitionTo<T>() where T : IFSMState;
-
-    /// <summary>查询是否可以切换到某状态</summary>
-    bool CanTransitionTo(PlayerStateType target);
-}
-```
-
-### 4.3 FSMSystem 实现
+## 二、RogueLikeGame —— 全局 IoC
 
 ```csharp
-public class FSMSystem : AbstractSystem, IFSMSystem
+public class RogueLikeGame : Architecture<RogueLikeGame>
 {
-    private IFSMState _currentState;
-    public IFSMState CurrentState => _currentState;
-    public PlayerStateType CurrentStateType { get; private set; }
-
-    // 状态转换表 —— Key = 当前状态, Value = 允许切换到的目标状态集合
-    private Dictionary<PlayerStateType, HashSet<PlayerStateType>> _transitionTable;
-
-    private PlayerModel _playerModel;
-
-    protected override void OnInit()
+    protected override void Init()
     {
-        BuildTransitionTable();
-        _playerModel = this.GetModel<IPlayerModel>() as PlayerModel;
+        // 只放真正全局唯一的共享资源
+        this.RegisterUtility<IInputUtility>(new InputUtility());
+        this.RegisterSystem<ICombatSystem>(new CombatSystem());
 
-        // 默认进入 Idle
-        ChangeState<IdleState>();
-    }
-
-    private void BuildTransitionTable()
-    {
-        _transitionTable = new Dictionary<PlayerStateType, HashSet<PlayerStateType>>
-        {
-            [PlayerStateType.Idle]    = new() { PlayerStateType.Move, PlayerStateType.Attack, PlayerStateType.Hurt, PlayerStateType.Dead },
-            [PlayerStateType.Move]    = new() { PlayerStateType.Idle, PlayerStateType.Attack, PlayerStateType.Hurt, PlayerStateType.Dead },
-            [PlayerStateType.Attack]  = new() { PlayerStateType.Idle, PlayerStateType.Hurt, PlayerStateType.Dead },
-            [PlayerStateType.Hurt]    = new() { PlayerStateType.Idle, PlayerStateType.Dead },
-            [PlayerStateType.Dead]    = new() { /* 死亡是终点 */ },
-        };
-    }
-
-    /// <summary>
-    /// 每帧由 PlayerController 调用。ISystem 没有 Update，必须由 MonoBehaviour 驱动。
-    /// 这是 Tick 例外，不算 IController 越权，因为它只是"推进一帧"，不直接改变业务状态。
-    /// </summary>
-    public void Tick(float deltaTime)
-    {
-        _currentState?.OnUpdate(this.GetArchitecture(), deltaTime);
-    }
-
-    public bool ChangeState<T>(bool allowSameState = false) where T : IFSMState, new()
-    {
-        var newState = new T();
-        var newStateType = newState.StateType;
-
-        // 1. 同状态检查
-        if (!allowSameState && CurrentStateType == newStateType)
-            return false;
-
-        // 2. 转换表检查
-        if (!CanTransitionTo(newStateType))
-            return false;
-
-        // 3. 旧状态退出
-        _currentState?.OnExit(this.GetArchitecture());
-
-        // 4. 切换
-        _currentState = newState;
-        CurrentStateType = newStateType;
-
-        // 5. 新状态进入
-        _currentState.OnEnter(this.GetArchitecture());
-
-        // 6. 更新 Model（BindableProperty 向上通知订阅者）
-        _playerModel.CurrentState.Value = CurrentStateType;
-
-        // 7. 发事件（下层 → 上层，通知 ViewController）
-        this.SendEvent(new PlayerStateChangedEvent
-        {
-            StateType = CurrentStateType,
-            AnimationName = _currentState.AnimationName
-        });
-
-        return true;
-    }
-
-    public bool CanTransitionTo<T>() where T : IFSMState
-    {
-        var targetState = new T();
-        return CanTransitionTo(targetState.StateType);
-    }
-
-    public bool CanTransitionTo(PlayerStateType target)
-    {
-        if (_transitionTable.TryGetValue(CurrentStateType, out var allowed))
-            return allowed.Contains(target);
-        return false;
+        // FSM 状态 / FSMSystem / EntityModel / CombatModel 不再注册到这里
+        // 由各实体的 EntityArchitecture 管理
     }
 }
 ```
 
 ---
 
-## 五、Command 层
+## 三、实体架构子类
 
-### 5.1 TryAttackCommand
+### 3.1 PlayerArchitecture
 
 ```csharp
-public class TryAttackCommand : AbstractCommand
+public class PlayerArchitecture : EntityArchitecture
 {
-    protected override void OnExcute()
+    public PlayerArchitecture(IAchitecture parent) : base(parent)
     {
-        var fsm = this.GetSystem<IFSMSystem>();
+        RegisterModel<IEntityModel>(new EntityModel());
+        RegisterModel<ICombatModel>(new CombatModel());
 
-        // 校验 —— 只有 Idle/Move 时可以攻击
-        if (!fsm.CanTransitionTo<AttackState>())
-            return;
+        RegisterSystem<FsmIdleState>(new FsmIdleState());
+        RegisterSystem<FsmMoveState>(new FsmMoveState());
+        RegisterSystem<FsmAttackState>(new FsmAttackState());
+        RegisterSystem<FsmHurtState>(new FsmHurtState());
 
-        fsm.ChangeState<AttackState>();
+        RegisterSystem<IFSMSystem>(new FSMSystem());
+
+        InitEntities();
     }
 }
 ```
 
-### 5.2 TryMoveCommand
+### 3.2 EnemyArchitecture
 
 ```csharp
-public class TryMoveCommand : AbstractCommand
+public class EnemyArchitecture : EntityArchitecture
 {
-    protected override void OnExcute()
+    public EnemyArchitecture(IAchitecture parent) : base(parent)
     {
-        var fsm = this.GetSystem<IFSMSystem>();
+        RegisterModel<IEntityModel>(new EntityModel());
+        RegisterModel<ICombatModel>(new CombatModel());
 
-        if (!fsm.CanTransitionTo<MoveState>())
-            return;
+        RegisterSystem<FsmIdleState>(new FsmIdleState());
+        RegisterSystem<FsmMoveState>(new FsmMoveState());
+        RegisterSystem<FsmAttackState>(new FsmAttackState());
+        RegisterSystem<FsmHurtState>(new FsmHurtState());
 
-        fsm.ChangeState<MoveState>();
+        RegisterSystem<IFSMSystem>(new FSMSystem());
+
+        InitEntities();
     }
 }
 ```
 
-### 5.3 TryIdleCommand
-
-```csharp
-public class TryIdleCommand : AbstractCommand
-{
-    protected override void OnExcute()
-    {
-        var fsm = this.GetSystem<IFSMSystem>();
-
-        if (!fsm.CanTransitionTo<IdleState>())
-            return;
-
-        fsm.ChangeState<IdleState>();
-    }
-}
-```
-
-> Command 不能有状态：三个 Command 类都没有字段或属性，只包含 `OnExcute` 逻辑。好处是校验集中在 Command 层，状态类只负责"判断是否该切换"。
+> Player 和 Enemy 的架构完全一样。如果需要差异化（如敌人没有 Hurt 状态），在子类覆盖即可。
 
 ---
 
-## 六、输入工具类（InputUtility）
+## 四、IEntityModel
 
-合并了输入数据存储和 Unity Input 封装。处于最底层（Utility），不访问任何上层对象。
-
-```csharp
-/// <summary>
-/// 输入工具类。存储当前帧输入数据 + 封装 Unity Input API。
-/// 位于 Utility 层（最底层），不获取任何上层对象。
-/// </summary>
-public interface IInputUtility : IUtility
-{
-    /// <summary>移动输入向量（WASD / 摇杆）</summary>
-    Vector2 MoveInput { get; }
-
-    /// <summary>攻击键是否在本帧按下（按下瞬间为 true）</summary>
-    bool AttackPressed { get; }
-
-    /// <summary>攻击键是否正在持续按住</summary>
-    bool AttackHolding { get; }
-
-    /// <summary>每帧调用，读取 UnityEngine.Input</summary>
-    void Tick();
-}
-
-public class InputUtility : IInputUtility
-{
-    public Vector2 MoveInput { get; private set; }
-    public bool AttackPressed { get; private set; }
-    public bool AttackHolding { get; private set; }
-
-    public IAchitecture GetArchitecture() => null; // Utility 层不访问上层
-
-    public void Tick()
-    {
-        MoveInput = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
-        AttackPressed = Input.GetButtonDown("Fire1");
-        AttackHolding = Input.GetButton("Fire1");
-    }
-}
-```
-
-> Unity Input 的依赖锁在这个类里。换输入方案（新 Input System、手柄、触屏）只需改此一处。FSM 状态通过 `arch.GetUtility<IInputUtility>()` 读取输入数据（上层读下层，方法调用，合规）。
-
----
-
-## 七、ViewController 层实现
-
-### 7.1 PlayerController（调度层）
-
-只做调度，不碰 Unity Input API。
-
-```csharp
-public class PlayerController : MonoBehaviour, IController
-{
-    private IInputUtility _inputUtility;
-    private IFSMSystem _fsmSystem;
-
-    void Start()
-    {
-        _inputUtility = this.GetUtility<IInputUtility>();
-        _fsmSystem = this.GetSystem<IFSMSystem>();
-    }
-
-    void Update()
-    {
-        // Tick 是框架驱动，不是业务状态变更，允许直接调
-        _inputUtility.Tick();                // Utility 读取 Unity Input
-        _fsmSystem.Tick(Time.deltaTime);     // FSM 推进一帧 → 状态读输入判断切换
-    }
-}
-```
-
-### 7.2 PlayerAnimationController
-
-FSM 不持有 Animator。由 ViewController 订阅事件来驱动动画（下层→上层：事件）。
-
-```csharp
-public class PlayerAnimationController : MonoBehaviour, IController
-{
-    private Animator _animator;
-
-    void Awake()
-    {
-        _animator = GetComponent<Animator>();
-    }
-
-    void Start()
-    {
-        // ISystem 通过 Event 通知 IController（下层→上层）
-        this.RegisterEvent<PlayerStateChangedEvent>(OnPlayerStateChanged)
-            .UnRegisterWhenGameObjectDestroyed(gameObject);
-    }
-
-    private void OnPlayerStateChanged(PlayerStateChangedEvent e)
-    {
-        _animator.CrossFade(e.AnimationName, 0.1f);
-    }
-}
-```
-
----
-
-## 八、PlayerStateChangedEvent（状态变更事件）
-
-`FSMSystem.ChangeState` 发出，供动画层、UI 层等订阅。纯数据载体（POCO），不继承任何基类。
-
-```csharp
-/// <summary>
-/// 玩家状态变更事件。由 FSMSystem.ChangeState 发出（下层→上层：事件），
-/// 由 PlayerAnimationController、UI 等订阅。
-/// </summary>
-public class PlayerStateChangedEvent
-{
-    /// <summary>Animator 中对应的动画状态名，如 "Idle"、"Attack"</summary>
-    public string AnimationName { get; set; }
-
-    /// <summary>当前状态枚举</summary>
-    public PlayerStateType StateType { get; set; }
-}
-```
-
-> **发送**（System 层）：`this.SendEvent(new PlayerStateChangedEvent { ... })`
-> **订阅**（ViewController 层）：`this.RegisterEvent<PlayerStateChangedEvent>(callback).UnRegisterWhenGameObjectDestroyed(gameObject)`
-
----
-
-## 九、PlayerModel（状态数据）
+原 `IPlayerModel` 改名，因为"移动数据"对 Player 和 Enemy 都适用。
 
 ```csharp
 public enum PlayerStateType
 {
     Idle,
-    Move,
     Attack,
-    Hurt,
-    Dead
+    Move,
+    Hurt
 }
 
-public interface IPlayerModel : IModel
+public interface IEntityModel : IModel
 {
-    /// <summary>当前状态（BindableProperty，向上通知订阅者）</summary>
-    BindableProperty<PlayerStateType> CurrentState { get; }
+    BindableProperty<PlayerStateType> _currentState { get; }
+    Vector2 MoveDelta { get; set; }
+    float MoveSpeed { get; set; }
 }
 
-public class PlayerModel : AbstractModel, IPlayerModel
+public class EntityModel : AbstractModel, IEntityModel
 {
-    public BindableProperty<PlayerStateType> CurrentState { get; } = new()
+    public BindableProperty<PlayerStateType> _currentState { get; } = new BindableProperty<PlayerStateType>()
     {
         Value = PlayerStateType.Idle
     };
+    public Vector2 MoveDelta { get; set; }
+    public float MoveSpeed { get; set; } = 5f;
 
     protected override void OnInit() { }
 }
 ```
 
+> `MoveDelta` 是普通属性——每帧连续变化的数据流，轮询优于事件。`_currentState` 是 `BindableProperty`——状态切换是离散事件，需要立即通知多方（动画、UI）。
+
 ---
 
-## 十、具体状态类示例
-
-状态**不读输入、不发 Command**。输入驱动的切换由 PlayerController（IController）通过 Command 完成。时间驱动的自动切换通过 `GetSystem<IFSMSystem>().ChangeState<T>()` 直接调用（System → System，合规）。
+## 五、IFSMState 接口
 
 ```csharp
-/// <summary>
-/// 待机状态 —— 纯生命周期，不做任何事。
-/// 输入判断全部在 PlayerController 中完成。
-/// </summary>
+public interface IFSMState : ISystem
+{
+    string AnimationName { get; }
+    PlayerStateType StateType { get; }
+    void OnEnter();
+    void OnUpdate(float deltaTime);
+    void OnFixUpdate(float deltaTime);
+    void OnExit();
+}
+```
+
+> **状态类继承 `AbstractSystem`**，通过 `this.GetModel<IEntityModel>()` 获取 Model，通过 `this.GetUtility<IInputUtility>()` 获取输入。API 不变。
+
+---
+
+## 六、各状态实现
+
+### 6.1 FsmIdleState
+
+```csharp
 public class FsmIdleState : AbstractSystem, IFSMState
 {
-    public string AnimationName { get; } = "Idle";
-    public PlayerStateType StateType { get; } = PlayerStateType.Idle;
+    public string AnimationName => "Idle";
+    public PlayerStateType StateType => PlayerStateType.Idle;
 
     public void OnEnter() { }
     public void OnUpdate(float dt) { }
     public void OnFixUpdate(float dt) { }
     public void OnExit() { }
+
     protected override void OnInit() { }
 }
+```
 
-/// <summary>
-/// 攻击状态 —— 管理攻击计时和判定帧。
-/// 攻击结束自动回 Idle（时间驱动，System → System 直接调用 ChangeState）。
-/// </summary>
+### 6.2 FsmMoveState
+
+```csharp
+public class FsmMoveState : AbstractSystem, IFSMState
+{
+    public string AnimationName => "Move";
+    public PlayerStateType StateType => PlayerStateType.Move;
+
+    public void OnEnter() { }
+    public void OnUpdate(float dt) { }
+
+    public void OnFixUpdate(float dt)
+    {
+        var model = this.GetModel<IEntityModel>();       // ← 本地 IoC
+        var input = this.GetUtility<IInputUtility>();    // ← 本地无，回退全局
+
+        Vector2 direction = new Vector2(input.Move.x, input.Move.y).normalized;
+        model.MoveDelta = direction * model.MoveSpeed;
+    }
+
+    public void OnExit()
+    {
+        this.GetModel<IEntityModel>().MoveDelta = Vector2.zero;
+    }
+
+    protected override void OnInit() { }
+}
+```
+
+### 6.3 FsmAttackState
+
+```csharp
 public class FsmAttackState : AbstractSystem, IFSMState
 {
-    public string AnimationName { get; } = "Attack";
-    public PlayerStateType StateType { get; } = PlayerStateType.Attack;
+    public string AnimationName => "Attack";
+    public PlayerStateType StateType => PlayerStateType.Attack;
 
     private float _elapsed;
     private bool _hitChecked;
@@ -554,189 +359,216 @@ public class FsmAttackState : AbstractSystem, IFSMState
     {
         _elapsed += dt;
 
-        // 判定帧：发事件让 ViewController 做碰撞检测
         if (!_hitChecked && _elapsed >= HitCheckTime)
         {
             _hitChecked = true;
-            this.SendEvent(new RequestAttackHitCheckEvent());
+            this.SendEvent(new RequestAttackHitCheckEvent());   // ← 本地事件总线
         }
 
-        // 攻击结束 → 回 Idle（System → System 直接调用，不走 Command）
         if (_elapsed >= AttackDuration)
             this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
     }
 
     public void OnFixUpdate(float dt) { }
     public void OnExit() { }
+
     protected override void OnInit() { }
 }
 ```
 
-> **区分两种切换方式**：输入驱动（玩家按键 → IController 发 Command → FSM 切换）走 Command 路径；时间驱动（攻击 0.5s 结束 → 自动回 Idle）走 System → System 直接方法调用。后者不需要校验（"攻击结束回 Idle"总是合法的），不需要 Command。
+### 6.4 FsmHurtState
+
+```csharp
+public class FsmHurtState : AbstractSystem, IFSMState
+{
+    public string AnimationName => "Hurt";
+    public PlayerStateType StateType => PlayerStateType.Hurt;
+
+    private float _elapsed;
+    private const float HurtDuration = 0.4f;
+
+    public void OnEnter() { _elapsed = 0f; }
+
+    public void OnUpdate(float dt)
+    {
+        _elapsed += dt;
+        if (_elapsed >= HurtDuration)
+        {
+            var combat = this.GetModel<ICombatModel>();
+            if (combat.IsDead.Value)
+            {
+                // 死亡暂回 Idle，后续可加 DeadState
+                this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
+            }
+            else
+            {
+                this.GetSystem<IFSMSystem>().ChangeState<FsmIdleState>();
+            }
+        }
+    }
+
+    public void OnFixUpdate(float dt) { }
+    public void OnExit() { }
+
+    protected override void OnInit() { }
+}
+```
 
 ---
 
-## 十一、MoveState —— 移动计算与传递
-
-### 11.1 核心问题
-
-FSM 是纯逻辑层（System），**不能持有 Unity 引用**（Transform、CharacterController 等）。因此 `MoveState` 只负责"算"，不负责"动"——算完之后通过 Model 层把结果交给 ViewController 去执行实际的 Transform 位移。
-
-### 11.2 数据流
-
-```
-PlayerController.Update()
-        │
-        ├─ 1. 读输入 → 判断切换（IController 发 Command）
-        │     有输入 → SendCommand<TryMoveCommand>() → FSMSystem → MoveState
-        │     无输入 → SendCommand<TryIdleCommand>()  → FSMSystem → IdleState
-        │
-        ├─ 2. 驱动 FSM
-        │     FSMSystem.FixUpdate(dt)
-        │       └─ MoveState.OnFixUpdate(dt)
-        │             │
-        │             ├─ 读 IInputUtility.Move（上层→下层：数据查询）
-        │             ├─ 算 movement = dir * speed
-        │             └─ 写 model.MoveDelta = movement（System → Model：直接写）
-        │
-        └─ 3. 应用移动
-              _rigidbody2D.velocity = _playerModel.MoveDelta
-```
-
-> **关键变化**：MoveState 不再判断"是否该停"——这是 PlayerController 的工作。MoveState 只负责"算出本帧移动量"。当玩家松开方向键，PlayerController 检测到后发 `TryIdleCommand`，FSM 切回 Idle，MoveState.OnExit 清零 MoveDelta。MoveState 自身不读输入做切换决策。
-
-### 11.3 为什么不走 BindableProperty / Event ？
-
-移动量是**每帧连续变化的数据流**，不是离散的状态变更事件。如果每帧都触发 BindableProperty 回调或 SendEvent，会有不必要的委托开销。用**普通属性 + 轮询**更合适：
-
-| 场景 | 机制 | 理由 |
-|------|------|------|
-| 状态切换（Idle→Move） | Event / BindableProperty | 偶尔发生，需要立即通知多方面（动画、UI、音效） |
-| 每帧移动量 | 普通属性 / 轮询 | 每帧变化，只有 ViewController 关心，轮询开销更低 |
-
-### 11.4 PlayerModel 扩展
+## 七、IFSMSystem 接口
 
 ```csharp
-public interface IPlayerModel : IModel
+public interface IFSMSystem : ISystem
 {
-    BindableProperty<PlayerStateType> CurrentState { get; }
-    
-    /// <summary>本帧移动增量（世界坐标），由 MoveState 计算写入，由 ViewController 读取执行</summary>
-    Vector3 MoveDelta { get; set; }
-    
-    /// <summary>移动速度（米/秒）</summary>
-    float MoveSpeed { get; set; }
-}
-
-public class PlayerModel : AbstractModel, IPlayerModel
-{
-    public BindableProperty<PlayerStateType> CurrentState { get; } = new()
-    {
-        Value = PlayerStateType.Idle
-    };
-
-    public Vector3 MoveDelta { get; set; }     // 每帧覆盖，无需 BindableProperty
-    public float MoveSpeed { get; set; } = 5f; // 默认移动速度
-
-    protected override void OnInit() { }
+    IFSMState _currentState { get; }
+    void Update(float deltaTime);
+    void FixUpdate(float deltaTime);
+    void ChangeState<T>() where T : class, IFSMState;
 }
 ```
 
-### 11.5 MoveState 实现
+---
+
+## 八、FSMSystem 实现
 
 ```csharp
-public class FsmMoveState : AbstractSystem, IFSMState
+public class FSMSystem : AbstractSystem, IFSMSystem
 {
-    public string AnimationName { get; } = "Move";
-    public PlayerStateType StateType { get; } = PlayerStateType.Move;
+    public IFSMState _currentState { get; private set; }
+    private IEntityModel _entityModel;
 
-    public void OnEnter() { }
-
-    // OnUpdate 不再做任何事——输入驱动的切换由 PlayerController 负责
-    public void OnUpdate(float dt) { }
-
-    // 每物理帧：读 Utility 算移动量，写 Model（System → Model 直接写，合规）
-    public void OnFixUpdate(float dt)
+    protected override void OnInit()
     {
-        var model = this.GetModel<IPlayerModel>();
-        var input = this.GetUtility<IInputUtility>();
-
-        Vector2 direction = new Vector2(input.Move.x, input.Move.y).normalized;
-        Vector3 movement = direction * model.MoveSpeed;
-        model.MoveDelta = movement;
+        _currentState = this.GetSystem<FsmIdleState>();   // ← 本地 IoC
+        _entityModel = this.GetModel<IEntityModel>();      // ← 本地 IoC
     }
 
-    public void OnExit()
-    {
-        // 退出移动时清零，防止残留移动
-        var model = this.GetModel<IPlayerModel>();
-        model.MoveDelta = Vector3.zero;
-    }
+    public void Update(float dt) => _currentState?.OnUpdate(dt);
+    public void FixUpdate(float dt) => _currentState?.OnFixUpdate(dt);
 
-    protected override void OnInit() { }
+    public void ChangeState<T>() where T : class, IFSMState
+    {
+        var newState = this.GetSystem<T>();                // ← 本地 IoC
+
+        if (_currentState != null)
+            _currentState.OnExit();
+
+        _currentState = newState;
+        _currentState.OnEnter();
+
+        _entityModel._currentState.Value = _currentState.StateType;
+
+        this.SendEvent(new PlayerStateChangedEvent         // ← 本地事件总线
+        {
+            StateType = _currentState.StateType,
+            AnimationName = _currentState.AnimationName
+        });
+    }
 }
 ```
 
-### 11.6 关键设计点
+> **一行都没改。** 和旧版全局单例时代的代码完全一致。唯一区别是 `this.GetSystem<T>()` 现在从实体自己的 IoC 容器取，而不是全局容器。
 
-**① 输入方向 → 世界方向**
+---
 
-摇杆的 Y 轴（前后）映射到世界坐标 Z 轴：
+## 九、Command 层
+
+Command 代码**完全不变**，仍然走 `new T()` 无参构造：
+
+```csharp
+public class TryMoveCommand : AbstractCommand
+{
+    protected override void OnExcute()
+    {
+        var fsm = this.GetSystem<IFSMSystem>();             // ← 从当前架构取
+        if (fsm._currentState.StateType != PlayerStateType.Move)
+            fsm.ChangeState<FsmMoveState>();
+    }
+}
+
+public class TryIdleCommand : AbstractCommand
+{
+    protected override void OnExcute()
+    {
+        var fsm = this.GetSystem<IFSMSystem>();
+        if (fsm._currentState.StateType != PlayerStateType.Idle)
+            fsm.ChangeState<FsmIdleState>();
+    }
+}
+
+public class TryAttackCommand : AbstractCommand
+{
+    protected override void OnExcute()
+    {
+        var fsm = this.GetSystem<IFSMSystem>();
+        if (fsm._currentState.StateType != PlayerStateType.Attack)
+            fsm.ChangeState<FsmAttackState>();
+    }
+}
+
+public class TryHurtCommand : AbstractCommand
+{
+    protected override void OnExcute()
+    {
+        var fsm = this.GetSystem<IFSMSystem>();
+        var combat = this.GetModel<ICombatModel>();
+
+        if (combat.IsDead.Value) return;
+        if (fsm._currentState.StateType == PlayerStateType.Hurt) return;
+
+        fsm.ChangeState<FsmHurtState>();
+    }
+}
 ```
-摇杆 (x, y) → 世界 (x, 0, y)
-```
-这是因为 Unity 中 XZ 是水平面，Y 是高度。如果项目用 2D 俯视视角，则直接映射到 XY。
 
-**② 向量归一化**
+> `SendCommand<T>()` 走的是调用方的架构。PlayerController 发 Command → Command 的架构 = PlayerArchitecture → `GetSystem<IFSMSystem>()` 返回 Player 的 FSMSystem。EnemyController 发 Command → Command 的架构 = EnemyArchitecture → 返回 Enemy 的 FSMSystem。**同一个 Command 类，不同上下文，自动操作不同的实体。**
 
-必须 `normalized`，否则斜向移动速度是 1.414 倍（对角线方向）。除非项目需要"原始摇杆幅度控制速度"，那就不归一化，直接用 `rawInput.magnitude` 作为速度倍率。
+---
 
-**③ OnExit 清零**
-
-退出 Move 状态时必须把 `MoveDelta` 归零，防止下一帧 ViewController 读到残留值产生滑步。
-
-**④ 速度放 Model**
-
-`MoveSpeed` 存 Model 而不是硬编码在 MoveState，原因是：
-- 其他系统（Buff、装备、减速）可能需要修改速度，它们只能访问 Model
-- FSM 也可以从 Model 读到最新速度，无需额外通信
-
-**⑤ FSM 不碰 Transform**
-
-MoveState **绝不去 `GameObject.transform.position += movement`**。移动的执行必须由 `PlayerController`（ViewController 层）完成，因为：
-- FSM 是纯逻辑层，依赖 Unity API 会让单元测试不可测
-- 如果将来角色用 CharacterController 或 NavMeshAgent 移动，只需改 ViewController，FSM 不变
-
-### 11.7 PlayerController —— 输入→Command 调度
+## 十、PlayerController
 
 ```csharp
 public class PlayerController : MonoBehaviour, IController
 {
+    private PlayerArchitecture _architecture;
     private IInputUtility _inputUtility;
     private IFSMSystem _fsmSystem;
-    private IPlayerModel _playerModel;
+    private IEntityModel _entityModel;
     private Rigidbody2D _rigidbody2D;
     private bool _prevAttack;
 
-    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
+    public IAchitecture GetArchitecture() => _architecture;
 
-    void Awake()
+    public void Awake()
     {
-        _inputUtility = this.GetUtility<IInputUtility>();
-        _fsmSystem = this.GetSystem<IFSMSystem>();
-        _playerModel = this.GetModel<IPlayerModel>();
+        _architecture = new PlayerArchitecture(RogueLikeGame.Interface);
+
+        _inputUtility = this.GetUtility<IInputUtility>();   // 回退到全局
+        _fsmSystem = this.GetSystem<IFSMSystem>();           // 本地
+        _entityModel = this.GetModel<IEntityModel>();        // 本地
+
         _rigidbody2D = this.GetComponent<Rigidbody2D>();
         _inputUtility.Awake();
+
+        this.RegisterEvent<RequestAttackHitCheckEvent>(e =>
+        {
+            PerformAttackHitCheck();
+        }).UnRegisterWhenGameObjectDestroyed(gameObject);
     }
 
-    void Update()
+    public void OnEnable()
+    {
+        _inputUtility.Enable();
+    }
+
+    public void Update()
     {
         var input = this.GetUtility<IInputUtility>();
         var currentState = _fsmSystem._currentState.StateType;
         bool attackPressed = input.Attack && !_prevAttack;
         bool hasMoveInput = Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f;
 
-        // 输入判断 → 发 Command（IController 唯一修改状态的通道）
         if (currentState != PlayerStateType.Hurt && currentState != PlayerStateType.Attack)
         {
             if (attackPressed)
@@ -748,80 +580,193 @@ public class PlayerController : MonoBehaviour, IController
         }
 
         _prevAttack = input.Attack;
-
-        // 驱动 FSM（Tick 例外，推进状态内部逻辑）
         _fsmSystem.Update(Time.deltaTime);
     }
 
-    void FixedUpdate()
+    public void FixedUpdate()
     {
         _fsmSystem.FixUpdate(Time.fixedDeltaTime);
-        _rigidbody2D.velocity = _playerModel.MoveDelta;
+        _rigidbody2D.velocity = _entityModel.MoveDelta;
+    }
+
+    public void OnDisable()
+    {
+        _inputUtility.Disable();
+    }
+
+    private void PerformAttackHitCheck()
+    {
+        var combat = this.GetModel<ICombatModel>();
+        float attackRange = 1.5f;
+        Vector3 attackCenter = transform.position + transform.right * 0.8f;
+
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);
+        foreach (var hit in hits)
+        {
+            if (hit.gameObject == gameObject) continue;
+
+            var enemy = hit.GetComponent<EnemyController>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(combat.AttackPower.Value);
+                break;
+            }
+        }
     }
 }
 ```
 
-> **职责划分**：PlayerController 读输入、判断切换、发 Command。FSM 状态不碰输入、不碰 Command。这是课程规定的 IController 唯一修改状态的通道。
-
-### 11.8 完整链路时序图
-
-```
-第 N 帧：
-┌─────────────────────────────────────────────────────────────┐
-│ PlayerController.Update()                                   │
-│                                                             │
-│  ① 读 input.Move / input.Attack   → IController 查询数据     │
-│  ② 判断切换 → SendCommand<TryMoveCommand>()                  │
-│       └─ Command → FSMSystem.ChangeState<FsmMoveState>()     │
-│  ③ fsm.Update(dt)                 → FsmMoveState.OnUpdate()  │
-│       （空，状态不做输入判断）                                  │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│ PlayerController.FixedUpdate()                               │
-│                                                             │
-│  ④ fsm.FixUpdate(dt)              → FsmMoveState.OnFixUpdate │
-│       ├─ 读 input.Move（上层→下层：数据查询）                   │
-│       ├─ 算 movement = dir * speed                           │
-│       └─ 写 model.MoveDelta = movement（System → Model）      │
-│  ⑤ _rigidbody2D.velocity = model.MoveDelta                   │
-│                                                             │
-│  如果玩家松手：PlayerController 检测到 !hasMoveInput           │
-│    → SendCommand<TryIdleCommand>()                           │
-│    → MoveState.OnExit() 清零 MoveDelta                       │
-└─────────────────────────────────────────────────────────────┘
-```
-
 ---
 
-## 十二、RogueLikeGameEditor 注册
+## 十一、EnemyController
 
 ```csharp
-public class RogueLikeGameEditor : Architecture<RogueLikeGameEditor>
+public class EnemyController : MonoBehaviour, IController
 {
-    protected override void Init()
+    private EnemyArchitecture _architecture;
+    private IFSMSystem _fsmSystem;
+    private IEntityModel _entityModel;
+    private ICombatModel _combatModel;
+    private Rigidbody2D _rigidbody2D;
+
+    public IAchitecture GetArchitecture() => _architecture;
+
+    public void Awake()
     {
-        // 注册 Model
-        RegisterModel<IPlayerModel>(new PlayerModel());
+        _architecture = new EnemyArchitecture(RogueLikeGame.Interface);
 
-        // 注册 System
-        RegisterSystem<IFSMSystem>(new FSMSystem());
+        _fsmSystem = this.GetSystem<IFSMSystem>();          // 本地
+        _entityModel = this.GetModel<IEntityModel>();        // 本地
+        _combatModel = this.GetModel<ICombatModel>();        // 本地
+        _entityModel.MoveSpeed = 3f;
 
-        // 注册 Utility
-        RegisterUtility<IInputUtility>(new InputUtility());
+        _rigidbody2D = this.GetComponent<Rigidbody2D>();
+
+        this.RegisterEvent<RequestAttackHitCheckEvent>(e =>
+        {
+            PerformAttackHitCheck();
+        }).UnRegisterWhenGameObjectDestroyed(gameObject);
+    }
+
+    public void TakeDamage(int rawDamage)
+    {
+        if (_combatModel.IsDead.Value) return;
+
+        var combatSystem = this.GetSystem<ICombatSystem>(); // 回退到全局
+        combatSystem.ApplyDamage(_combatModel, rawDamage);
+
+        if (!_combatModel.IsDead.Value)
+            this.SendCommand<TryHurtCommand>();
+        else
+            Die();
+    }
+
+    private void Die()
+    {
+        GetComponent<Collider2D>().enabled = false;
+        Destroy(gameObject, 1f);
     }
 }
 ```
 
+> Enemy 的 Update / FixedUpdate 逻辑和 Player 一致。输入来源从键盘改为 AI 驱动即可。
+
 ---
 
-## 十三、设计要点总结
+## 十二、事件隔离
 
-1. **层级从上到下**：ViewController → Command → System → Model → Utility，上层可获取下层，下层不访问上层
-2. **IController 修改状态必须走 Command**：不可直接调 System/Model 的写方法。Tick() 是驱动帧循环的例外
-3. **下层通知上层用 Event / BindableProperty**：`FSMSystem.ChangeState` 发 `PlayerStateChangedEvent`，`PlayerModel.CurrentState` 是 `BindableProperty`
-4. **Command 无状态**：纯校验 + 调用，没有字段属性
-5. **FSM 是纯逻辑**：不持有 Unity 引用，状态是独立 class
-6. **InputUtility 在最底层**：合并数据存储 + Unity Input 封装，不依赖任何上层
-7. **状态在 OnUpdate 中主动读输入**：不靠动画事件回调驱动状态切换
-8. **转换表**：用字典定义合法状态转换，避免 hardcode 条件判断
-9. **MoveState 只管算不管动**：移动量通过 Model 普通属性传递给 ViewController 执行，FSM 不碰 Transform。每帧数据用轮询而非 Event/BindableProperty
+### 本地事件（实体内）
+
+`FSMSystem.ChangeState` 发送 `PlayerStateChangedEvent`，`FsmAttackState.OnUpdate` 发送 `RequestAttackHitCheckEvent`。它们走的是 `EntityArchitecture` 的本地事件总线。
+
+```
+Player 的 FSMSystem.ChangeState("Attack")
+  → PlayerArchitecture.SendEvent(PlayerStateChangedEvent)
+  → PlayerAnimationController（订阅了 PlayerArchitecture）✓ 收到
+  → EnemyAnimationController（订阅的是 EnemyArchitecture）✗ 收不到  ← 天然隔离
+```
+
+### 全局事件（跨实体）
+
+`CombatSystem.ApplyDamage` 发送 `DamageEvent`。`CombatSystem` 注册在全局 IoC，它的 `SendEvent` 走全局总线。
+
+```
+CombatSystem.ApplyDamage()
+  → RogueLikeGame.Interface.SendEvent(DamageEvent)
+  → CombatUIController（订阅了全局架构）✓ 收到
+```
+
+### PlayerStateChangedEvent
+
+```csharp
+public class PlayerStateChangedEvent
+{
+    public PlayerStateType StateType { get; set; }
+    public string AnimationName { get; set; }
+}
+```
+
+> **不需要 EntityId**。事件在本地总线内传播，天然不会跨实体。
+
+---
+
+## 十三、动画控制器
+
+```csharp
+public class PlayerAnimationController : MonoBehaviour, IController
+{
+    private Animator _animator;
+
+    public IAchitecture GetArchitecture()
+    {
+        // 从同一个 GameObject 上的 PlayerController 获取架构
+        return GetComponent<PlayerController>().GetArchitecture();
+    }
+
+    void Awake()
+    {
+        _animator = GetComponent<Animator>();
+    }
+
+    void Start()
+    {
+        this.RegisterEvent<PlayerStateChangedEvent>(e =>
+        {
+            _animator.CrossFade(e.AnimationName, 0.1f);
+        }).UnRegisterWhenGameObjectDestroyed(gameObject);
+    }
+}
+```
+
+> `GetArchitecture()` 返回和 `PlayerController` 相同的 `PlayerArchitecture` 实例，所以订阅的是同一个本地事件总线。
+
+---
+
+## 十四、改动清单
+
+| 文件 | 改动 |
+|------|------|
+| **新建** `EntityArchitecture.cs` | 非单例 `IAchitecture`，含本地 IOC + 父级回退 |
+| **新建** `PlayerArchitecture.cs` | 注册 Player 的 Model / System / FSM |
+| **新建** `EnemyArchitecture.cs` | 注册 Enemy 的 Model / System / FSM |
+| `RogueLikeGame.cs` | Init() 删掉 FSM 状态 / FSMSystem / PlayerModel 的注册，只保留 IInputUtility + ICombatSystem |
+| `PlayerModel.cs` | `IPlayerModel` → `IEntityModel`，`PlayerModel` → `EntityModel` |
+| `FSMSystem.cs` | `_playerModel` 类型改为 `IEntityModel` |
+| `FSMState.cs` | 状态类内部 `GetModel<IPlayerModel>()` → `GetModel<IEntityModel>()` |
+| `PlayerController.cs` | 创建 `PlayerArchitecture`，GetArchitecture() 返回它 |
+| `PlayerAnimationController.cs` | GetArchitecture() 从 PlayerController 获取 |
+| `EnemyController.cs` | 创建 `EnemyArchitecture`，完整 FSM + TakeDamage |
+| Command 各文件 | **不改** |
+| `IFSMSystem` | **不改** |
+| `IFSMState` | **不改** |
+
+---
+
+## 十五、设计要点总结
+
+1. **架构统一** —— `EntityArchitecture` 的 API 和 `Architecture<T>` 完全一致，同一套 Register / Get / Send 规则
+2. **代码不动** —— FSM 状态类、FSMSystem、Command 全部原样复用，只是注册位置从全局移到实体自己的容器
+3. **查找回退** —— 实体容器没有的（如 `IInputUtility`），自动回退到全局容器
+4. **事件天然隔离** —— 每个实体有自己的事件总线，`PlayerStateChangedEvent` 不需要 `EntityId`
+5. **全局 IoC 只放共享资源** —— `IInputUtility`、`ICombatSystem` 等真正的跨实体服务
+6. **每个实体持有独立实例** —— Player 和 Enemy 各有自己的 FSM 状态对象、Model 数据，互不干扰
