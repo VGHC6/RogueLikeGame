@@ -1,5 +1,5 @@
 //工具接口
-public interface IUtility:IBelongToAchitecture
+public interface IUtility:IBelongToAchitecture, ICanSetArchitecture
 {
 
 }

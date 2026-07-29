@@ -1,4 +1,5 @@
 using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
 
 public interface IFSMState : ISystem
 {
@@ -119,7 +120,7 @@ public class FsmHurtState : AbstractSystem, IFSMState
 
     private float _elapsed;
     private const float HurtDuration = 0.4f;//伤害时间
-
+    private Vector2 _knockbackVelocity;//击退速度
     protected override void OnInit()
     {
         //throw new System.NotImplementedException();
@@ -127,7 +128,11 @@ public class FsmHurtState : AbstractSystem, IFSMState
 
     public void OnEnter()
     {
-        _elapsed = 0f;
+        _elapsed = 0f;//伤害时间
+
+        //击退计算
+        var model=this.GetModel<IEntityModel>();
+        _knockbackVelocity=model.KnockbackDirection * model.KnockbackForce;
     }
 
     public void OnUpdate(float datetime)
@@ -150,11 +155,15 @@ public class FsmHurtState : AbstractSystem, IFSMState
 
     public void OnFixUpdate(float datetime)
     {
-        //throw new System.NotImplementedException();
+        var model=this.GetModel<IEntityModel>();
+        _knockbackVelocity *= model.KnockbackDecay;
+        model.MoveDelta=_knockbackVelocity.magnitude<0.1f?Vector2.zero:_knockbackVelocity;//击退速度小于0.1时，归零,这里写入
     }
 
     public void OnExit()
     {
-        //throw new System.NotImplementedException();
+        var model = this.GetModel<IEntityModel>();
+        model.MoveDelta = Vector2.zero;
+        model.KnockbackDirection = Vector2.zero;
     }
 }

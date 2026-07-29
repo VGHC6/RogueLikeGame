@@ -1,6 +1,5 @@
 // ս��ϵͳ
 using UnityEngine;
-using UnityEngine.UI;
 
 public struct DamageResult
 {

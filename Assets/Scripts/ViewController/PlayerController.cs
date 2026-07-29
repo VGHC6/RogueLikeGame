@@ -1,3 +1,4 @@
+using UnityEditor;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IController
@@ -7,11 +8,11 @@ public class PlayerController : MonoBehaviour, IController
     private IInputUtility _inputUtility;//输入管理器
     private IFSMSystem _fsmSystem;
     private IEntityModel _playerModel;
-
+    private IAnimationUtility _animationUtility;
     private Rigidbody2D _rigidbody2D;
     private bool _prevAttack;
 
-    private bool _initialized;
+    private bool _initialized;//是否初始化
 
 
     public IAchitecture GetArchitecture()
@@ -26,9 +27,11 @@ public class PlayerController : MonoBehaviour, IController
         _inputUtility = _architecture.GetUtility<IInputUtility>();
         _fsmSystem = _architecture.GetSystem<IFSMSystem>();
         _playerModel = _architecture.GetModel<IEntityModel>();
-        _initialized = true;
-
+        _animationUtility = _architecture.GetUtility<IAnimationUtility>();
+        _animationUtility.Init(GetComponent<Animator>());
         _inputUtility.Awake();
+
+        _initialized = true;
 
         _architecture.RegisterEvent<RequestAttackHitCheckEvent>(e =>
         {
@@ -49,6 +52,8 @@ public class PlayerController : MonoBehaviour, IController
 
     public void Update()
     {
+        if (!_initialized) return;
+
         var input = _inputUtility;
         var currentState = _fsmSystem._currentState.StateType;
         bool attackPressed = input.Attack && !_prevAttack;
@@ -79,9 +84,11 @@ public class PlayerController : MonoBehaviour, IController
 
     public void FixedUpdate()
     {
-        _fsmSystem.FixUpdate(Time.fixedDeltaTime);
-       // Debug.Log("移动量：" + _playerModel.MoveDelta);
+        if (!_initialized) return;
 
+        _fsmSystem.FixUpdate(Time.fixedDeltaTime);
+        // Debug.Log("移动量：" + _playerModel.MoveDelta);
+        _playerModel.Position = transform.position;
         if (Mathf.Abs(_playerModel.MoveDelta.x) > 0.01f)
         {
             transform.localScale = new Vector3(_playerModel.MoveDelta.x > 0 ? 1 : -1, 1, 1);
@@ -97,8 +104,11 @@ public class PlayerController : MonoBehaviour, IController
     }
 
 
-
-    public void TakeDamage(int rawDamage)
+    /// <summary>
+    /// 受到伤害
+    /// </summary>
+    /// <param name="rawDamage"></param>
+    public void TakeDamage(int rawDamage, Vector2 knockbackDirection)
     {
         var combat = this.GetModel<ICombatModel>();
         if (combat.IsDead.Value) return;
@@ -107,7 +117,10 @@ public class PlayerController : MonoBehaviour, IController
         combatSystem.ApplyDamage(combat, rawDamage);
 
         if (!combat.IsDead.Value)
+        {
+            _playerModel.KnockbackDirection = knockbackDirection;
             this.SendCommand<TryHurtCommand>();
+        }
     }
 
     /// <summary>
@@ -116,7 +129,7 @@ public class PlayerController : MonoBehaviour, IController
     private void PerformAttackHitCheck()
     {
         var combat = this.GetModel<ICombatModel>();
-        float attackRange = 1.5f;//攻击范围
+        float attackRange = 0.5f;//攻击范围
         int facingDir = transform.localScale.x > 0 ? 1 : -1;//朝向方向
         Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.8f;//攻击中心
 
@@ -128,9 +141,9 @@ public class PlayerController : MonoBehaviour, IController
             var enemy = hit.GetComponent<EnemyController>();//获取敌人的控制器
             if (enemy != null)
             {
-                enemy.TakeDamage(combat.AttackPower.Value);//对敌人造成伤害
+                Vector2 knockbackDir = (enemy.transform.position - transform.position).normalized;
+                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);//对敌人造成伤害
                 //Debug.Log("攻击了敌人");
-                Debug.Log("敌人剩余生命值：" + enemy.GetModel<ICombatModel>().CurrentHp.Value);
                 break;
             }
         }

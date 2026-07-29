@@ -282,6 +282,7 @@ public class EntityArchitecture : IAchitecture
 
     public void RegisterUtility<T>(T instance) where T : IUtility
     {
+        instance.SetArchitecture(this);
         _container.Register<T>(instance);//×¢²áÊý¾Ý²ã
     }
 

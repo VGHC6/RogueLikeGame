@@ -14,11 +14,11 @@ public interface IInputUtility : IUtility
 public class InputUtility : IInputUtility
 {
     PlayerInput _playerInput;
-
+    private IAchitecture _architecture;
     public Vector2 Move => _playerInput.Player.Move.ReadValue<Vector2>();
     public bool Attack => _playerInput.Player.Attack.ReadValue<float>() > 0.5f;
 
-    public IAchitecture GetArchitecture() => null;
+    public IAchitecture GetArchitecture() => _architecture;
 
     public void Awake()
     {
@@ -33,5 +33,10 @@ public class InputUtility : IInputUtility
     public void Disable()
     {
         _playerInput.Disable();
+    }
+
+    public void SetArchitecture(IAchitecture architecture)
+    {
+        _architecture= architecture;
     }
 }
