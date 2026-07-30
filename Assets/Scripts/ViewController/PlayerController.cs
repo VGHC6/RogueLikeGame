@@ -86,10 +86,11 @@ public class PlayerController : MonoBehaviour, IController
     {
         if (!_initialized) return;
 
+
         _fsmSystem.FixUpdate(Time.fixedDeltaTime);
         // Debug.Log("移动量：" + _playerModel.MoveDelta);
         _playerModel.Position = transform.position;
-        if (Mathf.Abs(_playerModel.MoveDelta.x) > 0.01f)
+        if (Mathf.Abs(_playerModel.MoveDelta.x) > 0.01f && _playerModel._currentState.Value != PlayerStateType.Hurt)
         {
             transform.localScale = new Vector3(_playerModel.MoveDelta.x > 0 ? 1 : -1, 1, 1);
         }
@@ -129,9 +130,11 @@ public class PlayerController : MonoBehaviour, IController
     private void PerformAttackHitCheck()
     {
         var combat = this.GetModel<ICombatModel>();
-        float attackRange = 0.5f;//攻击范围
+        float attackRange =combat.AttackRange.Value;
+
         int facingDir = transform.localScale.x > 0 ? 1 : -1;//朝向方向
-        Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.8f;//攻击中心
+        Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;//攻击中心
+
 
         Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);//获取攻击范围内的碰撞体
         foreach (var hit in hits)
@@ -146,6 +149,27 @@ public class PlayerController : MonoBehaviour, IController
                 //Debug.Log("攻击了敌人");
                 break;
             }
+        }
+    }
+
+
+    /// <summary>
+    /// 绘制攻击范围
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="radius"></param>
+    /// <param name="color"></param>
+    void DrawAttackRangeCircle(Vector3 center, float radius, Color color)
+    {
+        int segments = 32;
+        float angleStep = 360f / segments;
+        Vector3 prevPoint = center + new Vector3(radius, 0, 0);
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0);
+            Debug.DrawLine(prevPoint, nextPoint, color);
+            prevPoint = nextPoint;
         }
     }
 }

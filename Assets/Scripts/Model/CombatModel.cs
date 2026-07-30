@@ -32,6 +32,8 @@ public class PlayerCombatModel : AbstractModel, ICombatModel
     public BindableProperty<int> DefensePower { get; } = new BindableProperty<int>();
 
     public BindableProperty<bool> IsDead { get; } = new BindableProperty<bool>();
+
+    public BindableProperty<float> AttackRange { get; } =new BindableProperty<float>() { Value = 0.6f };
 }
 
 
@@ -58,4 +60,5 @@ public class EnemyCombatModel : AbstractModel, ICombatModel
     public BindableProperty<int> DefensePower { get; } = new BindableProperty<int>();
 
     public BindableProperty<bool> IsDead { get; } = new BindableProperty<bool>();
+    public BindableProperty<float> AttackRange { get; } = new BindableProperty<float>() { Value = 0.5f };
 }

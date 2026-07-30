@@ -8,7 +8,8 @@ public class EnemyController : MonoBehaviour, IController
     private ICombatModel _combatModel;
     private EnemyAIUtility _enemyAIUtility;
     private Rigidbody2D _rigidbody2D;
-
+    private HitstopUtility _hitstopUtility;
+    private CameraUtility _cameraUtility;
     private bool _initialized;// «∑Ò≥ı ºªØ
 
     public IAchitecture GetArchitecture()
@@ -29,6 +30,10 @@ public class EnemyController : MonoBehaviour, IController
         _enemyAIUtility = _architecture.GetUtility<IEnemyAIUtility>() as EnemyAIUtility;
         _enemyAIUtility.Awake(transform);
         var animUtil = _architecture.GetUtility<IAnimationUtility>();
+        _hitstopUtility = _architecture.GetUtility<IHitstopUtility>()as HitstopUtility;
+        _hitstopUtility.Init(this);
+        _cameraUtility= _architecture.GetUtility<ICameraUtility>() as CameraUtility;
+        _cameraUtility.Init(this);
         animUtil.Init(GetComponent<Animator>());
         _initialized = true;
         this.RegisterEvent<RequestAttackHitCheckEvent>(e =>
@@ -82,10 +87,18 @@ public class EnemyController : MonoBehaviour, IController
     public void FixedUpdate()
     {
         if (!_initialized) return;
+
+        //var combat = this.GetModel<ICombatModel>();
+        //float attackRange = combat.AttackRange.Value;
+        //int facingDir = transform.localScale.x > 0 ? 1 : -1;
+        //Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;
+        //DrawAttackRangeCircle(attackCenter, attackRange, Color.red);
+
+
         _fsmSystem.FixUpdate(Time.fixedDeltaTime);
 
         _entityModel.Position = transform.position;
-        if (Mathf.Abs(_rigidbody2D.velocity.x) > 0.01f)
+        if (Mathf.Abs(_rigidbody2D.velocity.x) > 0.01f && _entityModel._currentState.Value != PlayerStateType.Hurt)
         {
             transform.localScale = new Vector3(_entityModel.MoveDelta.x > 0 ? 1 : -1, 1, 1);
         }
@@ -100,6 +113,8 @@ public class EnemyController : MonoBehaviour, IController
         var combatSystem = this.GetSystem<ICombatSystem>();
         combatSystem.ApplyDamage(_combatModel, rawDamage);
 
+       _hitstopUtility.Trigger(0.08f);//ø®»‚
+        _cameraUtility.Shake(0.1f, 0.2f);//∂∂∂Ø
         if (!_combatModel.IsDead.Value)
         {
             _entityModel.KnockbackDirection = knockbackDirection;
@@ -119,7 +134,7 @@ public class EnemyController : MonoBehaviour, IController
     private void PerformAttackHitCheck()
     {
         var combat = this.GetModel<ICombatModel>();
-        float attackRange = 1.5f;
+        float attackRange = combat.AttackRange.Value;
         int facingDir = transform.localScale.x > 0 ? 1 : -1;
         Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.8f;
 
@@ -135,6 +150,28 @@ public class EnemyController : MonoBehaviour, IController
                 player.TakeDamage(combat.AttackPower.Value, knockbackDir);
                 break;
             }
+        }
+    }
+
+
+
+    /// <summary>
+    /// ªÊ÷∆π•ª˜∑∂Œß
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="radius"></param>
+    /// <param name="color"></param>
+    void DrawAttackRangeCircle(Vector3 center, float radius, Color color)
+    {
+        int segments = 32;
+        float angleStep = 360f / segments;
+        Vector3 prevPoint = center + new Vector3(radius, 0, 0);
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * angleStep * Mathf.Deg2Rad;
+            Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0);
+            Debug.DrawLine(prevPoint, nextPoint, color);
+            prevPoint = nextPoint;
         }
     }
 }

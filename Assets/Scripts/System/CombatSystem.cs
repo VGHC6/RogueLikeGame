@@ -1,4 +1,3 @@
-// ս��ϵͳ
 using UnityEngine;
 
 public struct DamageResult
