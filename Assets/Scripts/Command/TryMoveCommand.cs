@@ -1,21 +1,9 @@
-//ÇĞ»»×´Ì¬£¬ÒÆ¶¯
+//åˆ‡æ¢çŠ¶æ€åˆ°ç§»åŠ¨
 public class TryMoveCommand : AbstractCommand
 {
     protected override void OnExcute()
     {
         var fsm = this.GetSystem<IFSMSystem>();
         if (fsm._currentState.StateType != PlayerStateType.Move) fsm.ChangeState<FsmMoveState>();
-    }
-}
-
-/// <summary>
-/// ÇĞ»»×´Ì¬£¬ÒÆ¶¯(µĞÈË)
-/// </summary>
-public class TryEnemyMoveCommand : AbstractCommand
-{
-    protected override void OnExcute()
-    {
-        var fsm = this.GetSystem<IFSMSystem>();
-        if (fsm._currentState.StateType != PlayerStateType.Move) fsm.ChangeState<EnemyMoveState>();
     }
 }

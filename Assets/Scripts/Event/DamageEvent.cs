@@ -1,10 +1,11 @@
 /// <summary>
-/// ÉËº¦½áËãÍê±Ïºó·¢ËÍ¡£
-/// UI ²ã¶©ÔÄÓÃÀ´µ¯³öÉËº¦Êı×Ö¡¢ÕğÆÁµÈ·´À¡¡£
+/// ä¼¤å®³è®¡ç®—å®Œæˆåå¹¿æ’­ã€‚
+/// UI å±‚è®¢é˜…æ­¤äº‹ä»¶åšä¼¤å®³æ•°å­—ã€è¡€æ¡ç­‰ååº”ã€‚
 /// </summary>
 public class DamageEvent
 {
-    public int RawDamage { get; set; }//¹¥»÷Á¦
-    public int FinalDamage { get; set; }//×îÖÕÉËº¦
-    public bool IsDead { get; set; }//ÊÇ·ñËÀÍö
+    public int RawDamage { get; set; }
+    public int FinalDamage { get; set; }
+    public bool IsDead { get; set; }
+    public int? EnemyId { get; set; }//æ”»å‡»è€… IDï¼Œç”¨äº UI å±‚æ˜¾ç¤ºä¼¤å®³æ¥æº
 }

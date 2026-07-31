@@ -1,10 +1,10 @@
-//摄像机工具接口，摄像机抖动
 using System.Collections;
 using UnityEngine;
 
 public interface ICameraUtility : IUtility
 {
-    void Shake(float intensity, float duration);//抖动
+    void Init(MonoBehaviour runner);
+    void Shake(float intensity, float duration);
 }
 
 public class CameraUtility : ICameraUtility
@@ -20,7 +20,7 @@ public class CameraUtility : ICameraUtility
     public void SetArchitecture(IAchitecture architecture)
     {
         _architecture = architecture;
-        _camera=Camera.main;
+        _camera = Camera.main;
     }
 
     public void Init(MonoBehaviour runner)
@@ -37,10 +37,10 @@ public class CameraUtility : ICameraUtility
     private IEnumerator Run(float intensity, float duration)
     {
         float elapsed = 0f;
-        Vector3 origin = _camera.transform.position;//摄像机初始位置 
+        Vector3 origin = _camera.transform.position;
         while (elapsed < duration)
         {
-            elapsed += Time.unscaledDeltaTime;//未缩放时间
+            elapsed += Time.unscaledDeltaTime;
             float x = Random.Range(-1f, 1f) * intensity;
             float y = Random.Range(-1f, 1f) * intensity;
             _camera.transform.position = origin + new Vector3(x, y, 0);

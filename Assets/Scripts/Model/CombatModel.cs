@@ -1,16 +1,17 @@
+//æˆ˜æ–—å±æ€§
 public interface ICombatModel : IModel
 {
-    BindableProperty<int> CurrentHp { get; }
-    BindableProperty<int> MaxHp { get; }
-    BindableProperty<int> AttackPower { get; }//¹¥»÷Á¦
-    BindableProperty<int> DefensePower { get; }//·ÀÓùÁ¦
-    BindableProperty<float> AttackRange { get; }//¹¥»÷·¶Î§
-    BindableProperty<bool> IsDead { get; }
+    BindableProperty<int> CurrentHp { get; }//å½“å‰è¡€é‡
+    BindableProperty<int> MaxHp { get; }//æœ€å¤§è¡€é‡
+    BindableProperty<int> AttackPower { get; }//æ”»å‡»åŠ›
+    BindableProperty<int> DefensePower { get; }//é˜²å¾¡åŠ›
+    BindableProperty<float> AttackRange { get; }//æ”»å‡»èŒƒå›´
+    BindableProperty<bool> IsDead { get; }//æ˜¯å¦æ­»äº¡
 }
 
 
 /// <summary>
-/// Íæ¼ÒÊı¾İ
+/// ç©å®¶æˆ˜æ–—å±æ€§
 /// </summary>
 public class PlayerCombatModel : AbstractModel, ICombatModel
 {
@@ -34,31 +35,4 @@ public class PlayerCombatModel : AbstractModel, ICombatModel
     public BindableProperty<bool> IsDead { get; } = new BindableProperty<bool>();
 
     public BindableProperty<float> AttackRange { get; } =new BindableProperty<float>() { Value = 0.6f };
-}
-
-
-/// <summary>
-/// µĞÈËÊı¾İ
-/// </summary>
-public class EnemyCombatModel : AbstractModel, ICombatModel
-{
-    protected override void OnInit()
-    {
-        MaxHp.Value = 6;
-        CurrentHp.Value = MaxHp.Value;
-        AttackPower.Value = 1;
-        DefensePower.Value = 1;
-        IsDead.Value = false;
-    }
-
-    public BindableProperty<int> CurrentHp { get; } = new BindableProperty<int>();
-
-    public BindableProperty<int> MaxHp { get; } = new BindableProperty<int>();
-
-    public BindableProperty<int> AttackPower { get; } = new BindableProperty<int>();
-
-    public BindableProperty<int> DefensePower { get; } = new BindableProperty<int>();
-
-    public BindableProperty<bool> IsDead { get; } = new BindableProperty<bool>();
-    public BindableProperty<float> AttackRange { get; } = new BindableProperty<float>() { Value = 0.5f };
 }

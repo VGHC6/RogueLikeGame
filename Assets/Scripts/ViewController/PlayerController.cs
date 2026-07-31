@@ -1,65 +1,44 @@
-using UnityEditor;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IController
 {
-    private PlayerArchitecture _architecture;//架构
-
-    private IInputUtility _inputUtility;//输入管理器
+    private IInputUtility _inputUtility;
     private IFSMSystem _fsmSystem;
     private IEntityModel _playerModel;
     private IAnimationUtility _animationUtility;
     private Rigidbody2D _rigidbody2D;
     private bool _prevAttack;
 
-    private bool _initialized;//是否初始化
+    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
 
-
-    public IAchitecture GetArchitecture()
+    public void Awake()
     {
-        if (!_initialized) InitArchitecture();
-        return _architecture;
-    }
-
-    private void InitArchitecture()
-    {
-        _architecture = new PlayerArchitecture(RogueLikeGame.Interface);
-        _inputUtility = _architecture.GetUtility<IInputUtility>();
-        _fsmSystem = _architecture.GetSystem<IFSMSystem>();
-        _playerModel = _architecture.GetModel<IEntityModel>();
-        _animationUtility = _architecture.GetUtility<IAnimationUtility>();
-        _animationUtility.Init(GetComponent<Animator>());
+        _rigidbody2D = GetComponent<Rigidbody2D>();
+        _inputUtility = this.GetUtility<IInputUtility>();
         _inputUtility.Awake();
+        _fsmSystem = this.GetSystem<IFSMSystem>();
+        _playerModel = this.GetModel<IEntityModel>();
+        _animationUtility = this.GetUtility<IAnimationUtility>();
+        _animationUtility.Init(GetComponent<Animator>());
 
-        _initialized = true;
-
-        _architecture.RegisterEvent<RequestAttackHitCheckEvent>(e =>
+        this.RegisterEvent<RequestAttackHitCheckEvent>(e =>
         {
             PerformAttackHitCheck();
         }).UnRegisterWhenGameObjectDestroyed(gameObject);
     }
 
-    public void Awake()
-    {
-        _rigidbody2D = GetComponent<Rigidbody2D>();
-    }
-
     public void OnEnable()
     {
-        GetArchitecture();
         _inputUtility.Enable();
     }
 
     public void Update()
     {
-        if (!_initialized) return;
-
         var input = _inputUtility;
         var currentState = _fsmSystem._currentState.StateType;
         bool attackPressed = input.Attack && !_prevAttack;
         bool hasMoveInput = Mathf.Abs(input.Move.x) > 0.1f || Mathf.Abs(input.Move.y) > 0.1f;
 
-        // Hurt 硬直、Attack 攻击期间不接受输入切换（Attack 时间驱动自动结束）
         if (currentState != PlayerStateType.Hurt && currentState != PlayerStateType.Attack)
         {
             if (attackPressed)
@@ -78,17 +57,13 @@ public class PlayerController : MonoBehaviour, IController
 
         _prevAttack = input.Attack;
 
-        // 驱动 FSM
         _fsmSystem.Update(Time.deltaTime);
     }
 
     public void FixedUpdate()
     {
-        if (!_initialized) return;
-
-
         _fsmSystem.FixUpdate(Time.fixedDeltaTime);
-        // Debug.Log("移动量：" + _playerModel.MoveDelta);
+
         _playerModel.Position = transform.position;
         if (Mathf.Abs(_playerModel.MoveDelta.x) > 0.01f && _playerModel._currentState.Value != PlayerStateType.Hurt)
         {
@@ -100,15 +75,9 @@ public class PlayerController : MonoBehaviour, IController
 
     public void OnDisable()
     {
-        if (!_initialized) return;
         _inputUtility.Disable();
     }
 
-
-    /// <summary>
-    /// 受到伤害
-    /// </summary>
-    /// <param name="rawDamage"></param>
     public void TakeDamage(int rawDamage, Vector2 knockbackDirection)
     {
         var combat = this.GetModel<ICombatModel>();
@@ -124,41 +93,29 @@ public class PlayerController : MonoBehaviour, IController
         }
     }
 
-    /// <summary>
-    /// 攻击判定
-    /// </summary>
     private void PerformAttackHitCheck()
     {
         var combat = this.GetModel<ICombatModel>();
-        float attackRange =combat.AttackRange.Value;
+        float attackRange = combat.AttackRange.Value;
 
-        int facingDir = transform.localScale.x > 0 ? 1 : -1;//朝向方向
-        Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;//攻击中心
+        int facingDir = transform.localScale.x > 0 ? 1 : -1;
+        Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;
 
-
-        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);//获取攻击范围内的碰撞体
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);
         foreach (var hit in hits)
         {
-            if (hit.gameObject == gameObject) continue; // 排除自己
+            if (hit.gameObject == gameObject) continue;
 
-            var enemy = hit.GetComponent<EnemyController>();//获取敌人的控制器
+            var enemy = hit.GetComponent<EnemyView>();
             if (enemy != null)
             {
                 Vector2 knockbackDir = (enemy.transform.position - transform.position).normalized;
-                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);//对敌人造成伤害
-                //Debug.Log("攻击了敌人");
+                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);
                 break;
             }
         }
     }
 
-
-    /// <summary>
-    /// 绘制攻击范围
-    /// </summary>
-    /// <param name="center"></param>
-    /// <param name="radius"></param>
-    /// <param name="color"></param>
     void DrawAttackRangeCircle(Vector3 center, float radius, Color color)
     {
         int segments = 32;

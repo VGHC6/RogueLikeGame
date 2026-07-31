@@ -1,5 +1,7 @@
 using UnityEngine;
-
+/// <summary>
+/// çŠ¶æ€æœºçŠ¶æ€
+/// </summary>
 public enum PlayerStateType
 {
     Idle,
@@ -8,55 +10,34 @@ public enum PlayerStateType
     Hurt
 }
 
-public interface IEntityModel : IModel//¿ò¼Üµ×²ã½Ó¿Ú
+public interface IEntityModel : IModel
 {
     BindableProperty<PlayerStateType> _currentState { get; }
     Vector2 MoveDelta { get; set; }
     float MoveSpeed { get; set; }
     Vector2 Position { get; set; }
-     float KnockbackForce { get; }   // ±»»÷ÍËµÄÁ¦¶È
-     float KnockbackDecay { get; }  // Ã¿Ö¡Ë¥¼õÏµÊı
+    float KnockbackForce { get; }
+    float KnockbackDecay { get; }
     Vector2 KnockbackDirection { get; set; }
 }
 
 
 /// <summary>
-/// Íæ¼ÒÊµÌåÌØÓĞ½Ó¿Ú
+/// ç©å®¶å®ä½“è¿è¡Œæ—¶æ•°æ®
 /// </summary>
-public class PlayerEntityModel : AbstractModel, IEntityModel//ÊµÌåÌØÓĞ½Ó¿Ú
+public class PlayerEntityModel : AbstractModel, IEntityModel
 {
-    public BindableProperty<PlayerStateType> _currentState { get; } = new BindableProperty<PlayerStateType>()
+    public BindableProperty<PlayerStateType> _currentState { get; } = new BindableProperty<PlayerStateType>()//å½“å‰çŠ¶æ€
     {
         Value = PlayerStateType.Idle
     };
-    public Vector2 MoveDelta { get; set; }
-    public float MoveSpeed { get; set; } = 5f;
-    public Vector2 Position { get; set; }
-    public float KnockbackForce { get; } = 8f;    // Íæ¼Ò±»»÷ÍËµÄÁ¦¶È
-    public float KnockbackDecay { get; } = 0.85f;  // Ã¿Ö¡Ë¥¼õÏµÊı
-    public Vector2 KnockbackDirection { get; set; }
+    public Vector2 MoveDelta { get; set; }//ç§»åŠ¨æ–¹å‘
+    public float MoveSpeed { get; set; } = 5f;//é€Ÿåº¦
+    public Vector2 Position { get; set; }//ç©å®¶ä½ç½®
+    public float KnockbackForce { get; } = 8f;//å‡»é€€åŠ›
+    public float KnockbackDecay { get; } = 0.85f;//å‡»é€€è¡°å‡
+    public Vector2 KnockbackDirection { get; set; }//å‡»é€€æ–¹å‘
 
-    protected override void OnInit()
-    { }
-}
-
-/// <summary>
-/// µĞÈËÊµÌåÌØÓĞ½Ó¿Ú
-/// </summary>
-public class EnemyEntityModel : AbstractModel, IEntityModel//ÊµÌåÌØÓĞ½Ó¿Ú
-{
-    public BindableProperty<PlayerStateType> _currentState { get; } = new BindableProperty<PlayerStateType>()
-    {
-        Value = PlayerStateType.Idle
-    };
-    public Vector2 MoveDelta { get; set; }
-    public float MoveSpeed { get; set; } = 3f;
-    public float ChaseRange { get; } = 5f;
-    public float AttackRange { get; set; } = 1f;
-    public Vector2 Position { get; set; }
-    public float KnockbackForce { get; } = 6f;    // ±»»÷ÍËµÄÁ¦¶È
-    public float KnockbackDecay { get; } = 0.85f;  // Ã¿Ö¡Ë¥¼õÏµÊı
-    public Vector2 KnockbackDirection { get; set; }
     protected override void OnInit()
     { }
 }

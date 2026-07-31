@@ -4,53 +4,48 @@ using System.Collections.Generic;
 
 public interface IAchitecture
 {
-    //¹¤¾ß½Ó¿Ú
+    //å·¥å…·æ¥å£
     T GetUtility<T>() where T : class, IUtility;
     void RegisterUtility<T>(T instance) where T : IUtility;
 
 
 
-    //Êı¾İ²ã½Ó¿Ú
+    //æ•°æ®å±‚æ¥å£
     T GetModel<T>() where T : class, IModel;
     void RegisterModel<T>(T instance) where T : IModel;
 
 
 
-    //ÏµÍ³²ã½Ó¿Ú
+    //ç³»ç»Ÿå±‚æ¥å£
     T GetSystem<T>() where T : class, ISystem;
     void RegisterSystem<T>(T instance) where T : ISystem;
 
 
 
-    //ÃüÁî½Ó¿Ú
-    void SendCommand<T>() where T : ICommand, new();//·¢ËÍÃüÁî
-    void SendCommand<T>(T command) where T : ICommand;//·¢ËÍÃüÁî´ø²Î
+    //å‘½ä»¤æ¥å£
+    void SendCommand<T>() where T : ICommand, new();//å‘é€å‘½ä»¤
+    void SendCommand<T>(T command) where T : ICommand;//å‘é€å‘½ä»¤å¸¦å‚
 
 
 
-    //ÊÂ¼ş½Ó¿Ú
-    void SendEvent<T>() where T : new();//·¢ËÍÊÂ¼ş
+    //äº‹ä»¶æ¥å£
+    void SendEvent<T>() where T : new();//å‘é€äº‹ä»¶
     void SendEvent<T>(T e);
-    IUnRegister RegisterEvent<T>(Action<T> OnEvent);//×¢²áÊÂ¼ş
-    void UnRegisterEvent<T>(Action<T> OnEvent);//È¡Ïû×¢²áÊÂ¼ş
+    IUnRegister RegisterEvent<T>(Action<T> OnEvent);//æ³¨å†Œäº‹ä»¶
+    void UnRegisterEvent<T>(Action<T> OnEvent);//å–æ¶ˆæ³¨å†Œäº‹ä»¶
 }
 
-
-/// <summary>
-/// ¼Ü¹¹»ùÀà,µ¥Àı
-/// </summary>
-/// <typeparam name="T"></typeparam>
-public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, new()//×ÓÀà°Ñ×Ô¼ºµÄÀàĞÍ×÷Îª·ºĞÍ²ÎÊı´«¸ø¸¸Àà,·ºĞÍ T ±ØĞëÊÇ Architecture<T> µÄ×ÓÀà
+public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, new()//å­ç±»æŠŠè‡ªå·±çš„ç±»å‹ä½œä¸ºæ³›å‹å‚æ•°ä¼ ç»™çˆ¶ç±»,æ³›å‹ T å¿…é¡»æ˜¯ Architecture<T> çš„å­ç±»
 {
-    private static T _achitecture;//¾²Ì¬±äÁ¿,ÓÃÓÚ´æ´¢µ±Ç°ÊµÀı
+    private static T _achitecture;//é™æ€å˜é‡,ç”¨äºå­˜å‚¨å½“å‰å®ä¾‹
 
-    public static Action<T> OnRegisterPatch = architecture => { };//×¢²áÄ£¿éµÄ»Øµ÷
+    public static Action<T> OnRegisterPatch = architecture => { };//æ³¨å†Œæ¨¡å—çš„å›è°ƒ
 
-    private bool isInited = false;//ÊÇ·ñ³õÊ¼»¯Íê³É
-    private List<IModel> _models = new List<IModel>();//ÓÃÓÚ³õÊ¼»¯Êı¾İ²ã
-    private List<ISystem> _systems = new List<ISystem>();//ÓÃÓÚ³õÊ¼»¯ÏµÍ³²ã
+    private bool isInited = false;//æ˜¯å¦åˆå§‹åŒ–å®Œæˆ
+    private List<IModel> _models = new List<IModel>();//ç”¨äºåˆå§‹åŒ–æ•°æ®å±‚
+    private List<ISystem> _systems = new List<ISystem>();//ç”¨äºåˆå§‹åŒ–ç³»ç»Ÿå±‚
 
-    //½Ó¿Ú
+    //æ¥å£
     public static IAchitecture Interface
     {
         get
@@ -65,42 +60,42 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
 
 
 
-    //È·±£ContainerÀàÖ»ÓĞÒ»¸öÊµÀı
+    //ç¡®ä¿Containerç±»åªæœ‰ä¸€ä¸ªå®ä¾‹
     static void MakeArchitecture()
     {
         if (_achitecture == null)
         {
-            _achitecture = new T();//ÊµÏÖµ¥Àı
+            _achitecture = new T();//å®ç°å•ä¾‹
             _achitecture.Init();
 
-            OnRegisterPatch?.Invoke(_achitecture);//×¢²áÄ£¿éµÄ»Øµ÷
+            OnRegisterPatch?.Invoke(_achitecture);//æ³¨å†Œæ¨¡å—çš„å›è°ƒ
         }
 
-        ///ÏÂÃæÊÇ¶ÔmodelºÍsystemµÄµÄ³õÊ¼»¯
+        ///ä¸‹é¢æ˜¯å¯¹modelå’Œsystemçš„çš„åˆå§‹åŒ–
         foreach (var system in _achitecture._systems)
         {
             system.Init();
         }
-        _achitecture._systems.Clear();//³õÊ¼»¯ºóÇå¿Õ
+        _achitecture._systems.Clear();//åˆå§‹åŒ–åæ¸…ç©º
 
         foreach (var model in _achitecture._models)
         {
             model.Init();
         }
-        _achitecture._models.Clear();//³õÊ¼»¯ºóÇå¿Õ
-        _achitecture.isInited = true;//³õÊ¼»¯Íê³É
+        _achitecture._models.Clear();//åˆå§‹åŒ–åæ¸…ç©º
+        _achitecture.isInited = true;//åˆå§‹åŒ–å®Œæˆ
     }
 
-    //CountainerÊµÀı
+    //Countainerå®ä¾‹
     private IOCContainer _container = new IOCContainer();
 
 
-    //Ô¤Áô×¢²áÄ£¿é½Ó¿Ú
+    //é¢„ç•™æ³¨å†Œæ¨¡å—æ¥å£
     protected abstract void Init();
 
 
     /// <summary>
-    /// ¹¤¾ß½Ó¿Ú
+    /// å·¥å…·æ¥å£
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
@@ -111,12 +106,13 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
 
     public void RegisterUtility<T>(T instance) where T : IUtility
     {
-        _achitecture._container.Register<T>(instance);
+        instance.SetArchitecture(this);
+        _container.Register<T>(instance);
     }
 
 
     /// <summary>
-    /// ÏµÍ³½Ó¿Ú
+    /// ç³»ç»Ÿæ¥å£
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
@@ -129,19 +125,19 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
     public void RegisterSystem<T>(T instance) where T : ISystem
     {
         instance.SetArchitecture(this);
-        _container.Register<T>(instance);//×¢²áÊı¾İ²ã
+        _container.Register<T>(instance);//æ³¨å†Œæ•°æ®å±‚
         if (isInited)
         {
-            instance.Init();//Èç¹û×¢²áÁË¾Í³õÊ¼»¯
+            instance.Init();//å¦‚æœæ³¨å†Œäº†å°±åˆå§‹åŒ–
         }
         else
         {
-            _systems.Add(instance);//Èç¹ûÃ»ÓĞ×¢²á¾ÍÏÈ´æÆğÀ´
+            _systems.Add(instance);//å¦‚æœæ²¡æœ‰æ³¨å†Œå°±å…ˆå­˜èµ·æ¥
         }
     }
 
     /// <summary>
-    /// Êı¾İ½Ó¿Ú
+    /// æ•°æ®æ¥å£
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
@@ -154,28 +150,28 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
     public void RegisterModel<T>(T instance) where T : IModel
     {
         instance.SetArchitecture(this);
-        _container.Register<T>(instance);//×¢²áÊı¾İ²ã
+        _container.Register<T>(instance);//æ³¨å†Œæ•°æ®å±‚
 
         if (isInited)
         {
-            instance.Init();//Èç¹û×¢²áÁË¾Í³õÊ¼»¯
+            instance.Init();//å¦‚æœæ³¨å†Œäº†å°±åˆå§‹åŒ–
         }
         else
         {
-            _models.Add(instance);//Èç¹ûÃ»ÓĞ×¢²á¾ÍÏÈ´æÆğÀ´
+            _models.Add(instance);//å¦‚æœæ²¡æœ‰æ³¨å†Œå°±å…ˆå­˜èµ·æ¥
         }
     }
 
 
     /// <summary>
-    /// ÃüÁî½Ó¿Ú
+    /// å‘½ä»¤æ¥å£
     /// </summary>
     /// <typeparam name="T1"></typeparam>
     /// <exception cref="NotImplementedException"></exception>
     public void SendCommand<T>() where T : ICommand, new()
     {
         var command = new T();
-        command.SetArchitecture(this);//Õâ¸öthisÊÇÎªÁËµÃµ½Õâ¸ö¼Ü¹¹
+        command.SetArchitecture(this);//è¿™ä¸ªthisæ˜¯ä¸ºäº†å¾—åˆ°è¿™ä¸ªæ¶æ„
         command.Excute();
     }
 
@@ -188,120 +184,11 @@ public abstract class Architecture<T> : IAchitecture where T : Architecture<T>, 
 
 
     /// <summary>
-    /// ÊÂ¼ş½Ó¿Ú
+    /// äº‹ä»¶æ¥å£
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <exception></exception>
     public ITypeEventSystem _typeEventSystem = new TypeEventSystem<T>();
-    public void SendEvent<T>() where T : new()
-    {
-        _typeEventSystem.Send<T>();
-    }
-
-    public void SendEvent<T>(T e)
-    {
-        _typeEventSystem.Send<T>(e);
-    }
-
-    public IUnRegister RegisterEvent<T>(Action<T> OnEvent)
-    {
-        return _typeEventSystem.Register<T>(OnEvent);
-    }
-
-    public void UnRegisterEvent<T>(Action<T> OnEvent)
-    {
-        _typeEventSystem.UnRegister<T>(OnEvent);
-    }
-}
-
-
-
-
-/// <summary>
-/// ·ÇÊµÀıÊµÏÖ
-/// </summary>
-public class EntityArchitecture : IAchitecture
-{
-    private IOCContainer _container = new IOCContainer();//ÈİÆ÷
-    private IAchitecture _parent;//¸¸¼Ü¹¹
-
-    private List<IModel> _models = new List<IModel>();//ÓÃÓÚ³õÊ¼»¯Êı¾İ²ã
-    private List<ISystem> _systems = new List<ISystem>();//ÓÃÓÚ³õÊ¼»¯ÏµÍ³²ã
-
-    private ITypeEventSystem _typeEventSystem = new TypeEventSystem<EntityArchitecture>();//ÊÂ¼şÏµÍ³
-
-
-    public EntityArchitecture(IAchitecture parent)//¹¹Ôìº¯Êı
-    {
-        _parent = parent;
-    }
-
-    protected void InitEntities()//³õÊ¼»¯
-    {
-        foreach (var system in _systems) system.Init();
-        _systems.Clear();
-        foreach (var model in _models) model.Init();
-        _models.Clear();
-    }
-
-
-    // ========== ²éÕÒ£ºÏÈ±¾µØ£¬ºó¸¸¼¶ ==========
-
-    public T GetModel<T>() where T : class, IModel
-    {
-        var result = _container.Get<T>();
-        return result ?? _parent?.GetModel<T>();//ÏÈ±¾µØ£¬ºó¸¸¼¶
-    }
-
-    public T GetSystem<T>() where T : class, ISystem
-    {
-        var result = _container.Get<T>();
-        return result ?? _parent?.GetSystem<T>();//ÏÈ±¾µØ£¬ºó¸¸¼¶
-    }
-
-    public T GetUtility<T>() where T : class, IUtility
-    {
-        var result = _container.Get<T>();
-        return result ?? _parent?.GetUtility<T>();//ÏÈ±¾µØ£¬ºó¸¸¼¶
-    }
-
-    // ========== ×¢²á£¨Í¬ Architecture<T> µÄÄ£Ê½£© ==========
-    public void RegisterModel<T>(T instance) where T : IModel
-    {
-        instance.SetArchitecture(this);
-        _container.Register<T>(instance);//×¢²áÊı¾İ²ã
-        _models.Add(instance);//Èç¹ûÃ»ÓĞ×¢²á¾ÍÏÈ´æÆğÀ´
-    }
-
-    public void RegisterSystem<T>(T instance) where T : ISystem
-    {
-        instance.SetArchitecture(this);
-        _container.Register<T>(instance);//×¢²áÊı¾İ²ã
-        _systems.Add(instance);//Èç¹ûÃ»ÓĞ×¢²á¾ÍÏÈ´æÆğÀ´
-    }
-
-    public void RegisterUtility<T>(T instance) where T : IUtility
-    {
-        instance.SetArchitecture(this);
-        _container.Register<T>(instance);//×¢²áÊı¾İ²ã
-    }
-
-    // ========== Command£¨×ß±¾µØ¼Ü¹¹£© ==========
-    public void SendCommand<T>() where T : ICommand, new()
-    {
-        var command = new T();
-        command.SetArchitecture(this);//Õâ¸öthisÊÇÎªÁËµÃµ½Õâ¸ö¼Ü¹¹
-        command.Excute();
-    }
-
-    public void SendCommand<T>(T command) where T : ICommand
-    {
-        command.SetArchitecture(this);
-        command.Excute();
-    }
-
-
-    // ========== ÊÂ¼ş£¨×ß±¾µØ×ÜÏß£¬ÊµÌå¼ä¸ôÀë£© ==========
     public void SendEvent<T>() where T : new()
     {
         _typeEventSystem.Send<T>();
