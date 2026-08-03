@@ -42,7 +42,7 @@ public class FSMSystem : AbstractSystem, IFSMSystem
         _currentState.OnEnter();
 
         _playerModel._currentState.Value = newStateType;
-        Debug.Log($"Change to {newStateType}"+ $"AnimationName to {newState.AnimationName}");
+        //Debug.Log($"Change to {newStateType}"+ $"AnimationName to {newState.AnimationName}");
         this.SendEvent(new PlayerStateChangedEvent
         {
             StateType = newStateType,

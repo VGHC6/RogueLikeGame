@@ -84,15 +84,18 @@ public class PlayerController : MonoBehaviour, IController
         if (combat.IsDead.Value) return;
 
         var combatSystem = this.GetSystem<ICombatSystem>();
-        combatSystem.ApplyDamage(combat, rawDamage);
+        combatSystem.ApplyDamage(combat, rawDamage);//¿Û³ýÉúÃüÖµ
 
         if (!combat.IsDead.Value)
         {
             _playerModel.KnockbackDirection = knockbackDirection;
-            this.SendCommand<TryHurtCommand>();
+            this.SendCommand<TryHurtCommand>();//ÇÐ»»ÎªÊÜÉË×´Ì¬
         }
     }
 
+    /// <summary>
+    /// ¹¥»÷ÃüÖÐ¼ì²â
+    /// </summary>
     private void PerformAttackHitCheck()
     {
         var combat = this.GetModel<ICombatModel>();
@@ -101,7 +104,7 @@ public class PlayerController : MonoBehaviour, IController
         int facingDir = transform.localScale.x > 0 ? 1 : -1;
         Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);//¹¥»÷·¶Î§¼ì²â
         foreach (var hit in hits)
         {
             if (hit.gameObject == gameObject) continue;
@@ -110,7 +113,8 @@ public class PlayerController : MonoBehaviour, IController
             if (enemy != null)
             {
                 Vector2 knockbackDir = (enemy.transform.position - transform.position).normalized;
-                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);
+               // Debug.Log($"Hit enemy! knockbackDir={knockbackDir}");
+                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);//¿Û³ýµÐÈËÉúÃüÖµ
                 break;
             }
         }
@@ -125,7 +129,7 @@ public class PlayerController : MonoBehaviour, IController
         {
             float angle = i * angleStep * Mathf.Deg2Rad;
             Vector3 nextPoint = center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0);
-            Debug.DrawLine(prevPoint, nextPoint, color);
+            //Debug.DrawLine(prevPoint, nextPoint, color);
             prevPoint = nextPoint;
         }
     }

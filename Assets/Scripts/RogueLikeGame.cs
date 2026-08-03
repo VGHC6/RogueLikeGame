@@ -11,6 +11,7 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         // ========== System ==========
         this.RegisterSystem<ICombatSystem>(new CombatSystem());
         this.RegisterSystem<IEnemyManagerSystem>(new EnemyManagerSystem());
+        this.RegisterSystem<IUISystem>(new UISystem());
 
         // Player FSM
         this.RegisterSystem<FsmIdleState>(new FsmIdleState());
