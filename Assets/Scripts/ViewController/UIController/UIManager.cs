@@ -3,7 +3,9 @@ using UnityEngine;
 using UnityEngine.UIElements;
 public class UIMangager : MonoBehaviour, IController
 {
+    [SerializeField] private GameObject _gameStartPanelPrefab;//游戏开始面板
     [SerializeField] private GameObject _gameplayPanelPrefab;//游戏运行面板
+    [SerializeField] private GameObject _gameOverPanelPrefab;//游戏结束面板
 
     private Dictionary<UIPanelType, GameObject> _panelPrefabs = new Dictionary<UIPanelType, GameObject>();//存放 面板预制体
     public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
@@ -26,7 +28,7 @@ public class UIMangager : MonoBehaviour, IController
             oldPanel.SetActive(false);//隐藏
         }
 
-        if (e.OldPanel == UIPanelType.None) return;
+        //if (e.OldPanel == UIPanelType.None) return;
 
         if(!_panelPrefabs.TryGetValue(e.NewPanel,out GameObject newPanel))
         {
@@ -34,6 +36,17 @@ public class UIMangager : MonoBehaviour, IController
             if (perfab == null) return;
             newPanel= Instantiate(perfab,transform);//实例化
             _panelPrefabs[e.NewPanel] = newPanel;//存入字典
+        }
+        newPanel.SetActive(true);//显示
+
+        //控制输入
+        if (e.NewPanel == UIPanelType.GamePlay)
+        {
+            this.GetUtility<IInputUtility>().Enable();
+        }
+        else
+        {
+            this.GetUtility<IInputUtility>().Disable();
         }
     }
 
@@ -44,7 +57,9 @@ public class UIMangager : MonoBehaviour, IController
     /// <returns></returns>
     GameObject GetPrefab(UIPanelType type) => type switch
     {
+        UIPanelType.Start => _gameStartPanelPrefab,
         UIPanelType.GamePlay => _gameplayPanelPrefab,
+        UIPanelType.GameOver => _gameOverPanelPrefab,
         _ => null//其他面板暂时没有
     };
 }

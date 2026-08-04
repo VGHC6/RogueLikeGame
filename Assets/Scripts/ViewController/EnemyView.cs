@@ -15,11 +15,9 @@ public class EnemyView : MonoBehaviour, IController
 
     public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
 
-    public void Init(int enemyId, EnemyRuntimeData data)
+    public void Init(int enemyId,EnemyRuntimeData data)
     {
         _enemyId = enemyId;
-        _anim = GetComponent<Animator>();
-
         RegisterEvents();
     }
 
@@ -30,32 +28,6 @@ public class EnemyView : MonoBehaviour, IController
         _col = GetComponent<Collider2D>();
     }
 
-    void Start()
-    {
-        // 场景中已放置的敌人，自动注册到 EnemyModel
-        if (_enemyId == 0)
-        {
-            var model = this.GetModel<IEnemyModel>();
-            var data = new EnemyRuntimeData//敌人的数据
-            {
-                MaxHp = 6, CurrentHp = 6,
-                AttackPower = 1, DefensePower = 1,
-                AttackRange = 1f, ChaseRange = 5f, MoveSpeed = 3f,
-                AttackDuration = 0.5f, HitCheckTime = 0.25f, HurtDuration = 0.4f,
-                KnockbackForce = 8f, KnockbackDecay = 0.85f,
-                State = EnemyActionState.Idle,
-                Position = transform.position
-            };
-            _enemyId = model.Register(data);
-        }
-        RegisterEvents();
-    }
-
-    void OnEnable()
-    {
-        if (_enemyId != 0)//如果敌人的id不为0
-            RegisterEvents();
-    }
 
     void OnDisable()
     {
@@ -79,7 +51,7 @@ public class EnemyView : MonoBehaviour, IController
 
         var model = this.GetModel<IEnemyModel>();
         if (!model.TryGet(_enemyId, out var data)) return;//如果敌人的数据为空，则返回
-        Debug.Log($"[FixedUpdate] state={data.State} md={data.MoveDelta} kv={data.KnockbackVelocity}");
+       // Debug.Log($"[FixedUpdate] state={data.State} md={data.MoveDelta} kv={data.KnockbackVelocity}");
         _rb.velocity = data.MoveDelta;
         if (Mathf.Abs(data.MoveDelta.x) > 0.01f && data.State != EnemyActionState.Hurt)
         {

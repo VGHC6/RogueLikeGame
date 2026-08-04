@@ -7,12 +7,13 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterModel<IEntityModel>(new PlayerEntityModel());
         this.RegisterModel<ICombatModel>(new PlayerCombatModel());
         this.RegisterModel<IEnemyModel>(new EnemyModel());
+        this.RegisterModel<IGameStateModel>(new GameStateModel());
 
         // ========== System ==========
         this.RegisterSystem<ICombatSystem>(new CombatSystem());
         this.RegisterSystem<IEnemyManagerSystem>(new EnemyManagerSystem());
         this.RegisterSystem<IUISystem>(new UISystem());
-
+        
         // Player FSM
         this.RegisterSystem<FsmIdleState>(new FsmIdleState());
         this.RegisterSystem<FsmMoveState>(new FsmMoveState());
@@ -25,5 +26,6 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterUtility<IHitstopUtility>(new HitstopUtility());
         this.RegisterUtility<ICameraUtility>(new CameraUtility());
         this.RegisterUtility<IAnimationUtility>(new AnimationUtility());
+        this.RegisterUtility<ISpawnUtility>(new SpawnUtility());
     }
 }

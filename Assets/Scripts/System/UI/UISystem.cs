@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-public interface IUISystem:ISystem
+public interface IUISystem : ISystem
 {
     UIPanelType _currentPanelType { get; }//当前面板类型
     void Changepanel(UIPanelType newPanelType);//切换面板
@@ -9,6 +9,11 @@ public interface IUISystem:ISystem
 public class UISystem : AbstractSystem, IUISystem
 {
     public UIPanelType _currentPanelType { get; private set; } = UIPanelType.None;
+
+    protected override void OnInit()
+    {
+        this.GetModel<IGameStateModel>()._currentPhase.RegisterOnValueChanged(Changepanel);//注册事件,游戏状态改变时调用OnPhaseChanged
+    }
 
     public void Changepanel(UIPanelType newPanelType)
     {
@@ -23,6 +28,4 @@ public class UISystem : AbstractSystem, IUISystem
             NewPanel = newPanelType
         });
     }
-
-    protected override void OnInit() { }
 }

@@ -11,11 +11,11 @@ public class PlayerController : MonoBehaviour, IController
 
     public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
 
-    public void Awake()
+
+    public void Init()
     {
         _rigidbody2D = GetComponent<Rigidbody2D>();
         _inputUtility = this.GetUtility<IInputUtility>();
-        _inputUtility.Awake();
         _fsmSystem = this.GetSystem<IFSMSystem>();
         _playerModel = this.GetModel<IEntityModel>();
         _animationUtility = this.GetUtility<IAnimationUtility>();
@@ -27,10 +27,6 @@ public class PlayerController : MonoBehaviour, IController
         }).UnRegisterWhenGameObjectDestroyed(gameObject);
     }
 
-    public void OnEnable()
-    {
-        _inputUtility.Enable();
-    }
 
     public void Update()
     {
@@ -72,29 +68,23 @@ public class PlayerController : MonoBehaviour, IController
 
         _rigidbody2D.velocity = _playerModel.MoveDelta;
     }
-
-    public void OnDisable()
-    {
-        _inputUtility.Disable();
-    }
-
     public void TakeDamage(int rawDamage, Vector2 knockbackDirection)
     {
         var combat = this.GetModel<ICombatModel>();
         if (combat.IsDead.Value) return;
 
         var combatSystem = this.GetSystem<ICombatSystem>();
-        combatSystem.ApplyDamage(combat, rawDamage);//¿Û³ýÉúÃüÖµ
+        combatSystem.ApplyDamage(combat, rawDamage);//ï¿½Û³ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
 
         if (!combat.IsDead.Value)
         {
             _playerModel.KnockbackDirection = knockbackDirection;
-            this.SendCommand<TryHurtCommand>();//ÇÐ»»ÎªÊÜÉË×´Ì¬
+            this.SendCommand<TryHurtCommand>();//ï¿½Ð»ï¿½Îªï¿½ï¿½ï¿½ï¿½×´Ì¬
         }
     }
 
     /// <summary>
-    /// ¹¥»÷ÃüÖÐ¼ì²â
+    /// æ‰§è¡Œæ”»å‡»æ£€æµ‹
     /// </summary>
     private void PerformAttackHitCheck()
     {
@@ -104,7 +94,7 @@ public class PlayerController : MonoBehaviour, IController
         int facingDir = transform.localScale.x > 0 ? 1 : -1;
         Vector3 attackCenter = transform.position + Vector3.right * facingDir * 0.5f;
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);//¹¥»÷·¶Î§¼ì²â
+        Collider2D[] hits = Physics2D.OverlapCircleAll(attackCenter, attackRange);//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î§ï¿½ï¿½ï¿½
         foreach (var hit in hits)
         {
             if (hit.gameObject == gameObject) continue;
@@ -114,12 +104,18 @@ public class PlayerController : MonoBehaviour, IController
             {
                 Vector2 knockbackDir = (enemy.transform.position - transform.position).normalized;
                // Debug.Log($"Hit enemy! knockbackDir={knockbackDir}");
-                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);//¿Û³ýµÐÈËÉúÃüÖµ
+                enemy.TakeDamage(combat.AttackPower.Value, knockbackDir);//ï¿½Û³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
                 break;
             }
         }
     }
 
+    /// <summary>
+    /// ç»˜åˆ¶æ”»å‡»èŒƒå›´
+    /// </summary>
+    /// <param name="center"></param>
+    /// <param name="radius"></param>
+    /// <param name="color"></param>
     void DrawAttackRangeCircle(Vector3 center, float radius, Color color)
     {
         int segments = 32;

@@ -12,6 +12,7 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
 {
     private Transform _playerTransform;//玩家位置，用来计算击退
     private List<int> _idSnapshot = new();//敌人id快照
+    private List<EnemySpawnData> _spawnList = new();//生成列表
 
     private const float AttackDuration = 0.5f;//攻击持续时间
     private const float HitCheckTime = 0.25f;//攻击检测时间
@@ -22,7 +23,43 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
     {
         var player = GameObject.FindWithTag("Player");
         if (player != null) _playerTransform = player.transform;
+
+        this.RegisterEvent<UIPanelChangeEvent>(OnPanelChange);
     }
+
+    void OnPanelChange(UIPanelChangeEvent e)
+    {
+        var spwan = this.GetUtility<ISpawnUtility>();//获取生成器
+        var enmeyModel = this.GetModel<IEnemyModel>();//获取敌人模型
+        if (e.NewPanel == UIPanelType.GamePlay)
+        {
+            //生成玩家
+            var PlayerGo = spwan.SpawnPlayer();
+            PlayerGo.GetComponent<PlayerController>().Init();
+            _playerTransform = PlayerGo.transform;//获取玩家位置
+            
+
+            //生成敌人
+            _spawnList.Clear();
+            spwan.SpwanEnemy(_spawnList);
+            foreach (var sd in _spawnList)
+            {
+                var id = enmeyModel.Register(sd.Data);//注册敌人
+                sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人
+            }
+        }else if (e.OldPanel == UIPanelType.GamePlay)
+        {
+            foreach (var kv in enmeyModel.GetAll())
+            {
+                enmeyModel.Unregister(kv.Key);//注销敌人
+            }
+
+            _playerTransform = null;
+            spwan.CleanupAll();//清理所有
+        }
+    }
+
+
 
     public void Update(float dt)
     {
@@ -79,7 +116,7 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
 
                 case EnemyActionState.Hurt:
                     {
-                       //Debug.Log($"[HurtUpdate] id={id} kv={data.KnockbackVelocity} timer={data.StateTimer:F3}");
+                        //Debug.Log($"[HurtUpdate] id={id} kv={data.KnockbackVelocity} timer={data.StateTimer:F3}");
                         float timer = data.StateTimer + dt;
                         Vector2 kvDecay = data.KnockbackVelocity * KnockbackDecay;
                         Vector2 moveDelta = kvDecay.magnitude < 0.1f ? Vector2.zero : kvDecay;
