@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public interface IEnemyManagerSystem : ISystem
@@ -12,7 +13,6 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
 {
     private Transform _playerTransform;//玩家位置，用来计算击退
     private List<int> _idSnapshot = new();//敌人id快照
-    private List<EnemySpawnData> _spawnList = new();//生成列表
 
     private const float AttackDuration = 0.5f;//攻击持续时间
     private const float HitCheckTime = 0.25f;//攻击检测时间
@@ -33,29 +33,39 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
         var enmeyModel = this.GetModel<IEnemyModel>();//获取敌人模型
         if (e.NewPanel == UIPanelType.GamePlay)
         {
-            //生成玩家
-            var PlayerGo = spwan.SpawnPlayer();
-            PlayerGo.GetComponent<PlayerController>().Init();
-            _playerTransform = PlayerGo.transform;//获取玩家位置
-            
+            var map = this.GetModel<IMapModel>();//地图模型
+            var rooms = map.Rooms;//房间列表
 
-            //生成敌人
-            _spawnList.Clear();
-            spwan.SpwanEnemy(_spawnList);
-            foreach (var sd in _spawnList)
+            //玩家第一个生成
+            if (rooms.Count > 0)
             {
-                var id = enmeyModel.Register(sd.Data);//注册敌人
-                sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人
+                var playerGo = spwan.SpawnPlayer(rooms[0].Center);//生成玩家
+                playerGo.GetComponent<PlayerController>().Init();//初始化玩家控制器
+                _playerTransform = playerGo.transform;//设置玩家位置
             }
-        }else if (e.OldPanel == UIPanelType.GamePlay)
+
+            //敌人生成
+            for (int i = 1; i < rooms.Count; i++)
+            {
+                var sd = spwan.SpwanEnemy(rooms[i].Center);//生成敌人
+                var id = enmeyModel.Register(sd.Data);//注册敌人
+                sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人控制器
+            }
+        }
+        else if (e.OldPanel == UIPanelType.GamePlay)
         {
+            //销毁敌人
+            _idSnapshot.Clear();
             foreach (var kv in enmeyModel.GetAll())
             {
-                enmeyModel.Unregister(kv.Key);//注销敌人
+                _idSnapshot.Add(kv.Key);
             }
-
+            foreach (var id in _idSnapshot)
+            {
+                enmeyModel.Unregister(id);
+            }
             _playerTransform = null;
-            spwan.CleanupAll();//清理所有
+            spwan.CleanupAll();
         }
     }
 

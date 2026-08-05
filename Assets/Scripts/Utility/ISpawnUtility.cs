@@ -1,19 +1,19 @@
-//������
+// 生成工具
 using System.Collections.Generic;
 using UnityEngine;
 
-//���ɵ��˵�����
+// 敌人出生数据
 public struct EnemySpawnData
 {
-    public GameObject GO;//���
+    public GameObject GO;// 游戏物体
     public EnemyRuntimeData Data;
 }
 
 public interface ISpawnUtility : IUtility
 {
-    GameObject SpawnPlayer();//�������
-    void SpwanEnemy(List<EnemySpawnData> outEnmeyList);//���ɵ���
-    void CleanupAll();//��������
+    GameObject SpawnPlayer(Vector2 pos);// 生成玩家,传入位置 
+    EnemySpawnData SpwanEnemy(Vector2 atPosition);// 生成敌人,传入位置
+    void CleanupAll();// 清理所有
 }
 
 
@@ -23,39 +23,35 @@ public interface ISpawnUtility : IUtility
 public class SpawnUtility : ISpawnUtility
 {
     private IAchitecture _architecture;
-    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
+    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;// 获取架构
 
     public void SetArchitecture(IAchitecture architecture)
     {
         _architecture = architecture;
     }
 
-    public GameObject SpawnPlayer()
+    public GameObject SpawnPlayer(Vector2 pos)
     {
         var perfab = Resources.Load<GameObject>("Perfabs/Player");
-        var go = GameObject.Instantiate(perfab, Vector2.zero, Quaternion.identity);//�������
-        return go;//�������
+        var go = GameObject.Instantiate(perfab, pos, Quaternion.identity);// 实例化玩家
+        return go;// 返回玩家
     }
 
     /// <summary>
-    /// ���ɵ��˵�����
+    /// 生成敌人数据
     /// </summary>
-    /// <param name="outEnmeyList"></param>
-    public void SpwanEnemy(List<EnemySpawnData> outEnmeyList)
+    /// <param name="outEnmeyList">输出的敌人列表</param>
+    public EnemySpawnData SpwanEnemy(Vector2 atPosition)
     {
         var perfab = Resources.Load<GameObject>("Perfabs/Enemy");
-        foreach (var pos in GetSpawnPositions())
-        {
-            var go = GameObject.Instantiate(perfab, pos, Quaternion.identity);//���ɵ���
-            var data = BuildEnemyData(pos);
-            outEnmeyList.Add(new EnemySpawnData { GO = go, Data = data });
-        }
+        var go= GameObject.Instantiate(perfab, atPosition, Quaternion.identity);// 实例化敌人
+        var date= BuildEnemyData(atPosition);// 构建敌人数据
+        return new EnemySpawnData { GO = go, Data = date };// 返回敌人数据
     }
 
     /// <summary>
-    /// ��������
+    /// 清理所有生成的物体
     /// </summary>
-    /// <exception cref="System.NotImplementedException"></exception>
     public void CleanupAll()
     {
         foreach (var obj in GameObject.FindGameObjectsWithTag("Enemy")) GameObject.Destroy(obj);
@@ -64,10 +60,10 @@ public class SpawnUtility : ISpawnUtility
     }
 
     /// <summary>
-    /// ���ɵ��˵�����
+    /// 构建敌人运行时数据
     /// </summary>
-    /// <param name="pos"></param>
-    /// <returns></returns>
+    /// <param name="pos">出生位置</param>
+    /// <returns>敌人运行时数据</returns>
     private EnemyRuntimeData BuildEnemyData(Vector2 pos) => new EnemyRuntimeData
     {
         MaxHp = 6,
@@ -86,14 +82,15 @@ public class SpawnUtility : ISpawnUtility
         Position = pos
     };
 
+
     /// <summary>
-    /// ��ʱ���������λ��
+    /// 临时生成位置
     /// </summary>
-    /// <returns></returns>
-    Vector2[] GetSpawnPositions() => new[]
-    {
-        new Vector2(3f,  1f),
-        new Vector2(5f, -1f),
-        new Vector2(7f,  0f),
-    };
+    /// <returns>生成位置数组</returns>
+    //Vector2[] GetSpawnPositions() => new[]
+    //{
+    //    new Vector2(3f,  1f),
+    //    new Vector2(5f, -1f),
+    //    new Vector2(7f,  0f),
+    //};
 }
