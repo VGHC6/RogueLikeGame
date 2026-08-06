@@ -13,6 +13,7 @@ public interface ISpawnUtility : IUtility
 {
     GameObject SpawnPlayer(Vector2 pos);// 生成玩家,传入位置 
     EnemySpawnData SpwanEnemy(Vector2 atPosition);// 生成敌人,传入位置
+    GameObject SpawnPickup(ItemConfig config, Vector2 atPosition);// 生成道具
     void CleanupAll();// 清理所有
 }
 
@@ -48,6 +49,13 @@ public class SpawnUtility : ISpawnUtility
         var date= BuildEnemyData(atPosition);// 构建敌人数据
         return new EnemySpawnData { GO = go, Data = date };// 返回敌人数据
     }
+
+    public GameObject SpawnPickup(ItemConfig config, Vector2 atPosition)
+    {
+        var go = GameObject.Instantiate(config.prefab, atPosition, Quaternion.identity);
+        return go;
+    }
+
 
     /// <summary>
     /// 清理所有生成的物体

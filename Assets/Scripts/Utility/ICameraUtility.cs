@@ -18,6 +18,9 @@ public class CameraUtility : ICameraUtility
     private float _minX, _maxX, _minY, _maxY;
     private bool _hasBounds;
     private MonoBehaviour _runner;
+
+    private float _shakeIntensity;
+    private float _shakeEndTime;
     public IAchitecture GetArchitecture()
     {
         return _architecture;
@@ -37,27 +40,8 @@ public class CameraUtility : ICameraUtility
     public void Shake(float intensity, float duration)
     {
         if (_camera == null || _runner == null) return;
-        _runner.StartCoroutine(Run(intensity, duration));
-    }
-
-    /// <summary>
-    /// Ò¡»ÎÉãÏñ»ú
-    /// </summary>
-    /// <param name="intensity"></param>
-    /// <param name="duration"></param>
-    /// <returns></returns>
-    private IEnumerator Run(float intensity, float duration)
-    {
-        float elapsed = 0f;
-        Vector3 origin = _camera.transform.position;
-        while (elapsed < duration)
-        {
-            elapsed += Time.unscaledDeltaTime;
-            float x = Random.Range(-1f, 1f) * intensity;
-            float y = Random.Range(-1f, 1f) * intensity;
-            _camera.transform.position = origin + new Vector3(x, y, 0);
-            yield return null;
-        }
+       _shakeIntensity=intensity;
+       _shakeEndTime=Time.unscaledTime+duration;
     }
 
     /// <summary>
@@ -110,5 +94,14 @@ public class CameraUtility : ICameraUtility
             }
             _camera.transform.position = targetPos;
         }
+
+        if (Time.unscaledTime < _shakeEndTime)
+        {
+            float x=Random.Range(-1f,1f)*_shakeIntensity;
+            float y=Random.Range(-1f,1f)*_shakeIntensity;
+            _camera.transform.position=new Vector3(x,y,0)+_camera.transform.position;
+        }
     }
 }
+
+

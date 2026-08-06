@@ -1,0 +1,55 @@
+
+using System.Collections.Generic;
+using UnityEngine;
+
+public enum ItemType
+{
+    Heal,
+    AtkUp,
+    DefUp,
+    SpeedUp,
+    MaxHpUp
+}
+
+[CreateAssetMenu(menuName = "RogueLike/ItemConfig")]
+public class ItemConfig : ScriptableObject
+{
+    public string itemName;
+    public Sprite icon;
+    public GameObject prefab;
+    public ItemType itemType;
+    public int value;
+    public float dropWeight;
+}
+
+public interface IItemModel : IModel
+{
+    int Count { get; }
+    BindableProperty<int> CountProperty { get; }
+    IReadOnlyList<ItemConfig> Items { get; }
+    void Add(ItemConfig config);
+    void Clear();
+}
+
+public class ItemModel : AbstractModel, IItemModel
+{
+    private List<ItemConfig> _items = new();
+
+    public int Count => _items.Count;
+    public IReadOnlyList<ItemConfig> Items => _items;
+
+    public BindableProperty<int> CountProperty { get; } = new BindableProperty<int>();
+    protected override void OnInit() { }
+
+    public void Add(ItemConfig config)
+    {
+        _items.Add(config);
+        CountProperty.Value = _items.Count;//´¥·¢
+    }
+
+    public void Clear()
+    {
+        _items.Clear();
+        CountProperty.Value = 0;//´¥·¢
+    }
+}

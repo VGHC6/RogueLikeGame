@@ -3,49 +3,43 @@ using UnityEngine;
 
 public interface IMapGeneratorSystem : ISystem
 {
-    void GanateMap(int MapWidth,int MapHeight, int MapCount);
+    void GanateMap(int MapWidth, int MapHeight, int MapCount);
 }
 
 public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
 {
-    private const int maxRoomSize = 10;//·¿¼ä×î´ó´óĞ¡
-    private const int minRoomSize = 5;//·¿¼Û×îĞ¡´óĞ¡
-    private const int RoomMargen = 2;//ÉãÏñ»ú±ßÔµ
-    private const int RoomSpacing = 1;//·¿¼ä¼ä¾à
+    private const int maxRoomSize = 10;
+    private const int minRoomSize = 5;
+    private const int RoomMargen = 2;
+    private const int RoomSpacing = 1;
 
     protected override void OnInit()
     {
         this.RegisterEvent<UIPanelChangeEvent>(OnPanelChange);
     }
 
-    //×¢²áÊÂ¼ş£¬ÅĞ¶ÏÊÇ·ñ½øÈëÓÎÏ·
     void OnPanelChange(UIPanelChangeEvent e)
     {
         if (e.NewPanel == UIPanelType.GamePlay)
         {
-            int roomCount = Random.Range(5, 9);//Ëæ»úÉú³É5-9¸ö·¿¼ä
+            int roomCount = Random.Range(5, 9);
             GanateMap(60, 40, roomCount);
-            this.SendEvent(new MapGeneratedEvent());//·¢ËÍµØÍ¼Éú³ÉÊÂ¼ş
+            this.SendEvent(new MapGeneratedEvent());
         }
     }
 
-    /// <summary>
-    /// Éú³ÉµØÍ¼
-    /// </summary>
-    /// <param name="MapWidth"></param>
-    /// <param name="Height"></param>
-    /// <param name="MapCount"></param>
     public void GanateMap(int MapWidth, int MapHeight, int MapCount)
     {
-        int[,] _grid= new int[MapWidth, MapHeight];//´´½¨Ò»¸ö¶şÎ¬Êı×é
-        List<RoomData> _rooms = new List<RoomData>();//´´½¨Ò»¸ö·¿¼äÁĞ±í
+        int[,] _grid = new int[MapWidth, MapHeight];
+        List<RoomData> _rooms = new List<RoomData>();
 
-        for(int i=0;i< MapCount; i++)
+        for (int i = 0; i < MapCount; i++)
         {
-            int roomH= Random.Range(minRoomSize, maxRoomSize+1);
-            int roomW = Random.Range(minRoomSize, maxRoomSize+1);
+            int roomH = Random.Range(minRoomSize, maxRoomSize + 1);
+            int roomW = Random.Range(minRoomSize, maxRoomSize + 1);
 
-            if(TryPlaceRoom(_grid, MapWidth, MapHeight, roomW,roomH,out int roomX,out int roomY))
+            if (TryPlaceRoom(_grid, MapWidth, MapHeight, roomW, roomH,
+                             out int roomX, out int roomY))
             {
                 var room = new RoomData
                 {
@@ -53,132 +47,123 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
                     Y = roomY,
                     Width = roomW,
                     Height = roomH,
-                    Center = new Vector2(roomX + roomW / 2, roomY + roomH / 2)//·¿¼äÖĞĞÄ×ø±ê
+                    Center = new Vector2(roomX + roomW / 2f, roomY + roomH / 2f)
                 };
-                CarveRoom(_grid, room);//Ìî³ä·¿¼ä
-                _rooms.Add(room);//½«·¿¼äÌí¼Óµ½·¿¼äÁĞ±í
+                CarveRoom(_grid, room);
+                _rooms.Add(room);
             }
         }
 
-        _rooms.Sort((a, b) => a.X.CompareTo(b.X));//°´X×ø±êÅÅĞò
-        //×ßÀÈ
-        for(int i=0; i< _rooms.Count-1; i++)
+        // æŒ‰ X åæ ‡æ’åº
+        _rooms.Sort((a, b) => a.X.CompareTo(b.X));
+
+        // ç›¸é‚»æˆ¿é—´ä¹‹é—´æŒ–èµ°å»Š
+        for (int i = 0; i < _rooms.Count - 1; i++)
         {
-            var r1= _rooms[i];
-            var r2= _rooms[i + 1];
-            int x1 = (int)r1.Center.x;//·¿¼ä1ÖĞĞÄX×ø±ê
+            var r1 = _rooms[i];
+            var r2 = _rooms[i + 1];
+            int x1 = (int)r1.Center.x;
             int y1 = (int)r1.Center.y;
-            int x2 = (int)r2.Center.x;//·¿¼ä2ÖĞĞÄX×ø±ê
+            int x2 = (int)r2.Center.x;
             int y2 = (int)r2.Center.y;
-            CarveCorridor(_grid, MapWidth, MapHeight, x1, y1, x2, y2);//Ìî³ä×ßÀÈ
+            CarveCorridor(_grid, MapWidth, MapHeight, x1, y1, x2, y2);
         }
-        //Ğ´ÈëModel
+
         this.GetModel<IMapModel>().SetMap(_grid, _rooms);
     }
 
-    /// <summary>
-    /// ³¢ÊÔ·ÅÖÃ·¿¼ä
-    /// </summary>
-    /// <param name="grid"></param>
-    /// <param name="mapW"></param>
-    /// <param name="mapH"></param>
-    /// <param name="roomW"></param>
-    /// <param name="roomH"></param>
-    /// <param name="roomX"></param>
-    /// <param name="roomY"></param>
-    /// <returns></returns>
-    bool TryPlaceRoom(int[,] grid, int mapW, int mapH,int roomW, int roomH,out int roomX, out int roomY)
+    bool TryPlaceRoom(int[,] grid, int mapW, int mapH,
+                      int roomW, int roomH,
+                      out int roomX, out int roomY)
     {
-        int maxX = mapW - roomW - RoomMargen;//·¿¼ä×î´óX×ø±ê
-        int maxY= mapH - roomH - RoomMargen;//·¿¼ä×î´óY×ø±ê
+        int maxX = mapW - roomW - RoomMargen;
+        int maxY = mapH - roomH - RoomMargen;
 
         roomX = 0;
-        roomY= 0;
-        if (maxX < RoomMargen || maxY < RoomMargen) return false;//Èç¹û·¿¼ä×î´ó×ø±êĞ¡ÓÚ±ßÔµ£¬Ôò·µ»Øfalse
+        roomY = 0;
+        if (maxX < RoomMargen || maxY < RoomMargen) return false;
 
-        //³¢ÊÔ·ÅÖÃ
-        for(int attempt = 0; attempt< 10; attempt++)
+        for (int attempt = 0; attempt < 10; attempt++)
         {
-            roomX = Random.Range(RoomMargen, maxX+1);
-            roomY = Random.Range(RoomMargen, maxY+1);
-            int cx0 = roomX - RoomSpacing;//·¿¼ä×óÉÏ½ÇX×ø±ê
-            int cy0 = roomY - RoomSpacing;//·¿¼ä×óÉÏ½ÇY×ø±ê
-            int cx1 = roomX + roomW + RoomSpacing - 1;//·¿¼äÓÒÏÂ½ÇX×ø±ê
-            int cy1 = roomY + roomH + RoomSpacing - 1;//·¿¼äÓÒÏÂ½ÇY×ø±ê
+            roomX = Random.Range(RoomMargen, maxX + 1);
+            roomY = Random.Range(RoomMargen, maxY + 1);
+            int cx0 = roomX - RoomSpacing;
+            int cy0 = roomY - RoomSpacing;
+            int cx1 = roomX + roomW + RoomSpacing - 1;
+            int cy1 = roomY + roomH + RoomSpacing - 1;
 
-            if(cx0<0||cy0<0||cx1>=mapW||cy1>=mapH) continue;//Èç¹û·¿¼ä×ø±ê³¬³öµØÍ¼·¶Î§£¬ÔòÌø¹ı
+            if (cx0 < 0 || cy0 < 0 || cx1 >= mapW || cy1 >= mapH) continue;
 
-            bool overlap = false;//ÖØµş±êÖ¾
-            for(int x = cx0; x<= cx1&& !overlap; x++)
+            bool overlap = false;
+            for (int x = cx0; x <= cx1 && !overlap; x++)
             {
                 for (int y = cy0; y <= cy1 && !overlap; y++)
                 {
-                    if(grid[x,y]!=0) overlap = true;//Èç¹û·¿¼ä×ø±êÓĞÖØµş£¬ÔòÉèÖÃÖØµş±êÖ¾Îªtrue
+                    if (grid[x, y] != 0) overlap = true;
                 }
             }
-            if (!overlap) return true;//Èç¹ûÃ»ÓĞÖØµş£¬Ôò·µ»Øtrue
+            if (!overlap) return true;
         }
-        return false;//Èç¹û³¢ÊÔ´ÎÊı³¬¹ı10´Î£¬Ôò·µ»Øfalse
+        return false;
     }
 
-    /// <summary>
-    /// Ìî³äÊı×é
-    /// </summary>
-    /// <param name="grid"></param>
-    /// <param name="roomData"></param>
-    void CarveRoom(int[,] grid,RoomData roomData)
+    void CarveRoom(int[,] grid, RoomData roomData)
     {
-        //µØ°åÌî³ä
-        for(int x=0; x< roomData.Width; x++)
+        // åœ°æ¿
+        for (int x = 0; x < roomData.Width; x++)
         {
-            for(int y=0; y< roomData.Height; y++)
+            for (int y = 0; y < roomData.Height; y++)
             {
                 grid[roomData.X + x, roomData.Y + y] = 1;
             }
         }
 
-        int mapW = grid.GetLength(0);//»ñÈ¡µØÍ¼¿í¶È
-        int mapH = grid.GetLength(1);//»ñÈ¡µØÍ¼¸ß¶È
-        for(int x= roomData .X- 1; x<=roomData.X+roomData.Width; x++)
+        // è¾¹ç•Œå¢™å£
+        int mapW = grid.GetLength(0);
+        int mapH = grid.GetLength(1);
+        for (int x = roomData.X - 1; x <= roomData.X + roomData.Width; x++)
         {
-            for(int y= roomData.Y- 1; y<=roomData.Y+roomData.Height; y++)
+            for (int y = roomData.Y - 1; y <= roomData.Y + roomData.Height; y++)
             {
-                if(x < 0 || x >= mapW || y < 0 || y >= mapH) continue;//Èç¹û×ø±ê³¬³öµØÍ¼·¶Î§£¬ÔòÌø¹ı
-                if (grid[x, y] == 0) grid[x, y] = 2;//Ìî³äÊı×é
+                if (x < 0 || x >= mapW || y < 0 || y >= mapH) continue;
+                if (grid[x, y] == 0) grid[x, y] = 2;
             }
         }
     }
 
-
-    /// <summary>
-    /// Éú³É×ßÀÈ
-    /// </summary>
-    /// <param name="grid"></param>
-    /// <param name="mapW"></param>
-    /// <param name="mapH"></param>
-    /// <param name="x1"></param>
-    /// <param name="y1"></param>
-    /// <param name="x2"></param>
-    /// <param name="y2"></param>
-    void CarveCorridor(int[,] grid,int mapW, int mapH, int x1, int y1, int x2, int y2)
+    void CarveCorridor(int[,] grid, int mapW, int mapH,
+                       int x1, int y1, int x2, int y2)
     {
-        int stepX=x2 - x1 > 0 ? 1 : -1;//¼ÆËãx·½Ïò²½³¤
-        for(int x= x1; x!=x2; x += stepX)
+        int stepX = x2 > x1 ? 1 : -1;
+
+        // æ°´å¹³æ®µï¼š3 æ ¼å®½åœ°æ¿
+        for (int x = x1; x != x2 + stepX; x += stepX)
         {
-            if (x < 0 || x >= mapW || y1 < 0 || y1 >= mapH) continue;
-            grid[x, y1] = 1;//Ìî³äÊı×é
-            if (y1 - 1 >= 0 && grid[x, y1 - 1] == 0)grid[x, y1 - 1] = 2;//Ìî³äÊı×é
-            if (y1 + 1 < mapH && grid[x, y1 + 1] == 0) grid[x, y1 + 1] = 2;//Ìî³äÊı×é
+            if (x < 0 || x >= mapW) continue;
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                int yy = y1 + dy;
+                if (yy >= 0 && yy < mapH)
+                    grid[x, yy] = 1;
+            }
+            if (y1 - 2 >= 0 && grid[x, y1 - 2] == 0) grid[x, y1 - 2] = 2;
+            if (y1 + 2 < mapH && grid[x, y1 + 2] == 0) grid[x, y1 + 2] = 2;
         }
 
-        
-        int stepY = y2 - y1 > 0 ? 1 : -1;//¼ÆËãy·½Ïò²½³¤
-        for (int y = y1; y != y2; y += stepY)
+        int stepY = y2 > y1 ? 1 : -1;
+
+        // å‚ç›´æ®µï¼š3 æ ¼å®½åœ°æ¿
+        for (int y = y1; y != y2 + stepY; y += stepY)
         {
-            if (x2 < 0 || x2 >= mapW || y < 0 || y >= mapH) continue;
-            grid[x2, y] = 1;//Ìî³äÊı×é
-            if (x2 - 1 >= 0 && grid[x2 - 1, y] == 0) grid[x2 - 1, y] = 2;//Ìî³äÊı×é
-            if (x2 + 1 < mapW && grid[x2 + 1, y] == 0) grid[x2 + 1, y] = 2;//Ìî³äÊı×é
+            if (y < 0 || y >= mapH) continue;
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int xx = x2 + dx;
+                if (xx >= 0 && xx < mapW)
+                    grid[xx, y] = 1;
+            }
+            if (x2 - 2 >= 0 && grid[x2 - 2, y] == 0) grid[x2 - 2, y] = 2;
+            if (x2 + 2 < mapW && grid[x2 + 2, y] == 0) grid[x2 + 2, y] = 2;
         }
     }
 }

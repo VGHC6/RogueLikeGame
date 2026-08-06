@@ -207,6 +207,14 @@ MonoBehaviour:
   _wallTileMap: {fileID: 1840329749}
   _floorTile: {fileID: 11400000, guid: 97c193c71951f714180b830d9189e6dd, type: 2}
   _wallTile: {fileID: 11400000, guid: 31e1d97b47ac1b449b3a1171bb8fc842, type: 2}
+  _edgeTop: {fileID: 11400000, guid: b6e867137c24578469e3ce7cc905692f, type: 2}
+  _edgeBottom: {fileID: 11400000, guid: fa980342b1f7f4d4785a10e5ad832304, type: 2}
+  _edgeLeft: {fileID: 11400000, guid: bfc3c53b2bf280b4b9c4fc5e473f068b, type: 2}
+  _edgeRight: {fileID: 11400000, guid: 0d56c573b3f4e9441806b576544d4a35, type: 2}
+  _cornerTL: {fileID: 11400000, guid: 72fa1df246bc433489978881cce06808, type: 2}
+  _cornerTR: {fileID: 11400000, guid: 06c1c85ed227826448ff3a10de5a4c0c, type: 2}
+  _cornerBL: {fileID: 11400000, guid: a8308c6b4712339438b9f9718e123410, type: 2}
+  _cornerBR: {fileID: 11400000, guid: 5daff345510ae4a45bc8c53e9811af42, type: 2}
 --- !u!156049354 &288854213
 Grid:
   m_ObjectHideFlags: 0
@@ -602,7 +610,9 @@ GameObject:
   - component: {fileID: 1840329747}
   - component: {fileID: 1840329749}
   - component: {fileID: 1840329748}
+  - component: {fileID: 1840329751}
   - component: {fileID: 1840329750}
+  - component: {fileID: 1840329752}
   m_Layer: 0
   m_Name: Wall
   m_TagString: Untagged
@@ -712,7 +722,52 @@ Tilemap:
     e31: 0
     e32: 0
     e33: 1
---- !u!50 &1840329750
+--- !u!66 &1840329750
+CompositeCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1840329746}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 0, y: 0}
+  m_GeometryType: 0
+  m_GenerationType: 0
+  m_EdgeRadius: 0
+  m_ColliderPaths:
+  - m_Collider: {fileID: 1840329752}
+    m_ColliderPaths: []
+  m_CompositePaths:
+    m_Paths: []
+  m_VertexDistance: 0.0005
+  m_OffsetDistance: 0.00005
+  m_UseDelaunayMesh: 0
+  m_CompositeGameObject: {fileID: 1840329746}
+--- !u!50 &1840329751
 Rigidbody2D:
   serializedVersion: 4
   m_ObjectHideFlags: 0
@@ -720,8 +775,8 @@ Rigidbody2D:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1840329746}
-  m_BodyType: 2
-  m_Simulated: 0
+  m_BodyType: 1
+  m_Simulated: 1
   m_UseFullKinematicContacts: 0
   m_UseAutoMass: 0
   m_Mass: 1
@@ -739,6 +794,42 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!19719996 &1840329752
+TilemapCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1840329746}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 1
+  m_Offset: {x: 0, y: 0}
+  m_MaximumTileChangeCount: 1000
+  m_ExtrusionFactor: 0
+  m_UseDelaunayMesh: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
