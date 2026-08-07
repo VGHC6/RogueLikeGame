@@ -22,6 +22,7 @@ public class PlayerHpView : MonoBehaviour, IController
         {
             foreach (var h in _image) Destroy(h.gameObject);
             BuildHearts(max);
+            RefreshHearts();
         }).UnRegisterWhenGameObjectDestroyed(gameObject);
     }
 

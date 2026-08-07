@@ -31,5 +31,6 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterUtility<ICameraUtility>(new CameraUtility());
         this.RegisterUtility<IAnimationUtility>(new AnimationUtility());
         this.RegisterUtility<ISpawnUtility>(new SpawnUtility());
+        this.RegisterUtility<ISaveUtility>(new SaveUtility());
     }
 }

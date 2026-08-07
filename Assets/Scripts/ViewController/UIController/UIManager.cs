@@ -6,6 +6,7 @@ public class UIMangager : MonoBehaviour, IController
     [SerializeField] private GameObject _gameStartPanelPrefab;//游戏开始面板
     [SerializeField] private GameObject _gameplayPanelPrefab;//游戏运行面板
     [SerializeField] private GameObject _gameOverPanelPrefab;//游戏结束面板
+    [SerializeField] private GameObject _pausePanelPrefab;//暂停面板
 
     private Dictionary<UIPanelType, GameObject> _panelPrefabs = new Dictionary<UIPanelType, GameObject>();//存放 面板预制体
     public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
@@ -19,6 +20,32 @@ public class UIMangager : MonoBehaviour, IController
     {
         this.GetSystem<IUISystem>().Changepanel(UIPanelType.Start);
     }
+
+
+    void Update()
+    {
+        if (this.GetUtility<IInputUtility>().Pause)
+        {
+            var state = this.GetModel<IGameStateModel>();
+            if (state._currentPhase.Value == UIPanelType.GamePlay)
+                state._currentPhase.Value = UIPanelType.Pause;
+            else if (state._currentPhase.Value == UIPanelType.Pause)
+                state._currentPhase.Value = UIPanelType.GamePlay;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     void OnPanelChange(UIPanelChangeEvent e)
     {
@@ -60,6 +87,7 @@ public class UIMangager : MonoBehaviour, IController
         UIPanelType.Start => _gameStartPanelPrefab,
         UIPanelType.GamePlay => _gameplayPanelPrefab,
         UIPanelType.GameOver => _gameOverPanelPrefab,
+        UIPanelType.Pause=> _pausePanelPrefab,
         _ => null//其他面板暂时没有
     };
 }

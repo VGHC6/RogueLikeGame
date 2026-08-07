@@ -378,8 +378,10 @@ public class LoadGameCommand : AbstractCommand
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SaveSlotItem : MonoBehaviour
+public class SaveSlotItem : MonoBehaviour, IController
 {
+    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
+
     [SerializeField] private Text    _labelText;    // "存档 1" / "存档 2" / "存档 3"
     [SerializeField] private Text    _infoText;     // "2026/08/06 14:30  HP:5/6  第1层"
     [SerializeField] private Button  _button;       // 点击触发
@@ -508,15 +510,60 @@ GameObject GetPrefab(UIPanelType type) => type switch
 [SerializeField] private GameObject _pausePanelPrefab;   // ← 新增
 ```
 
-### 4.3 开始面板脚本（如 `GameStartPanel.cs`）
+### 4.3 GameStartPanel.cs — 增加读取存档功能
 
-增加"读取存档"按钮：
+#### 4.3.1 脚本修改
+
+当前 `GameStartPanel.cs` 只有一个 `OnStartButton()` 方法。需要新增：
+
+- `_savePanel` 字段：引用场景中的 `SavePanel` 组件
+- `OnLoadButton()` 方法：以 Load 模式打开存档面板
+
+```csharp
+using UnityEngine;
+
+public class GameStartPanel : MonoBehaviour, IController
+{
+    [SerializeField] private SavePanel _savePanel;   // ← 新增字段
+
+    public IAchitecture GetArchitecture() => RogueLikeGame.Interface;
+
+    public void OnStartButton()
+    {
+        this.GetModel<IGameStateModel>().StartGame();
+    }
+
+    // ← 新增方法
+    public void OnLoadButton()
+    {
+        _savePanel.Show(SavePanelMode.Load);
+    }
+}
+```
+
+#### 4.3.2 Prefab 修改
+
+`GameStart.prefab` 中已有一个 "Read" 按钮节点（GameObject 名称为 `Read`），需要：
+
+1. **绑定 OnLoadButton**：选中 `Read` 按钮，在 Inspector 的 `Button.OnClick` 中添加回调：
+   - Target：挂载 `GameStartPanel` 的 GameObject
+   - Method：`GameStartPanel.OnLoadButton`
+
+2. **添加 SavePanel 子节点**：在 `GameStart` 根节点下创建一个空子节点，挂载 `SavePanel.cs`，并为其创建 3 个存档槽位（参考 5.3 节）。创建完成后将 SavePanel 初始设为不激活（`SetActive(false)`）。
+
+3. **拖入引用**：将上一步创建的 `SavePanel` 节点拖入 `GameStartPanel` 的 `_savePanel` 字段。
+
+最终 `GameStart` Prefab 结构：
 
 ```
-Start 面板 UI 结构：
-├── [新游戏] 按钮 → StartGame()（现有）
-├── [读取存档] 按钮 → 激活 SavePanel，mode = Load
-└── SavePanel（初始隐藏，激活后显示）
+GameStart（Canvas，挂载 GameStartPanel.cs）
+├── Button "Start" → OnClick 绑定 OnStartButton()
+├── Button "Read"  → OnClick 绑定 OnLoadButton()
+└── SavePanel（初始隐藏，挂载 SavePanel.cs）
+    ├── SaveSlot_0（挂载 SaveSlotItem.cs）
+    ├── SaveSlot_1（挂载 SaveSlotItem.cs）
+    ├── SaveSlot_2（挂载 SaveSlotItem.cs）
+    └── [关闭] 按钮 → Hide()
 ```
 
 ### 4.4 新增 Pause 面板 Prefab
@@ -567,18 +614,31 @@ SavePanel（Panel，初始 SetActive(false)）
 
 ### 5.4 触发 Pause 面板
 
-在 `GamePlayPanel` 或 `PlayerController` 中监听 Esc 键：
+Esc 键的监听应收归 `InputUtility`，不在 PlayerController 或 GamePlayPanel 中零散处理。原因：
+
+- PlayerController 在暂停时可能被禁用，无法再接收 Esc 来恢复
+- `InputUtility` 是所有输入的汇聚点（Move、Attack 已在此），Pause 不应例外
+
+#### 5.4.1 InputUtility 改动
+
+1. 在 `IInputUtility` 新增属性：`bool Pause { get; }`
+2. 在 Unity Input Action Asset 的 Player Action Map 中添加 `Pause` Action，绑定 Esc 键
+3. `InputUtility` 实现：`public bool Pause => _playerInput.Player.Pause.triggered;`
+
+#### 5.4.2 UIManager 消费
+
+在 `UIManager.Update` 中轮询并切换面板（UIManager 始终活跃，不会因暂停被禁用）：
 
 ```csharp
 void Update()
 {
-    if (Input.GetKeyDown(KeyCode.Escape))
+    if (this.GetUtility<IInputUtility>().Pause)
     {
         var state = this.GetModel<IGameStateModel>();
         if (state._currentPhase.Value == UIPanelType.GamePlay)
-            state._currentPhase.Value = UIPanelType.Pause;   // 打开暂停
+            state._currentPhase.Value = UIPanelType.Pause;
         else if (state._currentPhase.Value == UIPanelType.Pause)
-            state._currentPhase.Value = UIPanelType.GamePlay; // 关闭暂停回到游戏
+            state._currentPhase.Value = UIPanelType.GamePlay;
     }
 }
 ```
