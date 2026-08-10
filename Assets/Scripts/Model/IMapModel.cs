@@ -25,7 +25,7 @@ public class MapModel : AbstractModel, IMapModel
 {
     int _width;
     int _height;
-    List<RoomData> _rooms;//房间列表
+    List<RoomData> _rooms = new List<RoomData>();
     private int[,] _tileGrid;//地图矩阵
 
     public int Width => _width;//总宽
@@ -51,7 +51,7 @@ public class MapModel : AbstractModel, IMapModel
         _tileGrid = null;
         _width = 0;
         _height = 0;
-        _rooms.Clear();
+        _rooms?.Clear();
     }
 }
 

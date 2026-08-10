@@ -11,7 +11,6 @@ public class GameStartPanel : MonoBehaviour, IController
 
     public void OnLoadButton()
     {
-        var go=Instantiate(_savePanel, this.transform);
-        go.GetComponent<SavePanel>().Show(SavePanelMode.Load);
+        this.GetModel<IGameStateModel>().OpenSaveLoadPanel(SavePanelMode.Load, UIPanelType.Start);
     }
 }

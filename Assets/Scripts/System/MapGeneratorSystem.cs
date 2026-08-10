@@ -22,9 +22,16 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
     {
         if (e.NewPanel == UIPanelType.GamePlay)
         {
-            int roomCount = Random.Range(5, 9);
-            GanateMap(60, 40, roomCount);
-            this.SendEvent(new MapGeneratedEvent());
+            var map = this.GetModel<IMapModel>();
+            if (map.Width == 0 || map.Height == 0)
+            {
+                int roomCount = Random.Range(5, 9);
+                GanateMap(60, 40, roomCount);
+                this.SendEvent(new MapGeneratedEvent());
+            }
+        }else if (e.NewPanel == UIPanelType.Start)
+        {
+            this.GetModel<IMapModel>().Clearup();
         }
     }
 

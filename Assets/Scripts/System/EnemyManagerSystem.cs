@@ -33,26 +33,45 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
         var enmeyModel = this.GetModel<IEnemyModel>();//获取敌人模型
         if (e.NewPanel == UIPanelType.GamePlay)
         {
-            var map = this.GetModel<IMapModel>();//地图模型
-            var rooms = map.Rooms;//房间列表
-
-            //玩家第一个生成
-            if (rooms.Count > 0)
+            var enemyModel = this.GetModel<IEnemyModel>();//敌人模型
+            if (enemyModel.GetAll().Count == 0)
             {
-                var playerGo = spwan.SpawnPlayer(rooms[0].Center);//生成玩家
+                var map = this.GetModel<IMapModel>();//地图模型
+                var rooms = map.Rooms;//房间列表
+
+                //玩家第一个生成
+                if (rooms.Count > 0)
+                {
+                    var playerGo = spwan.SpawnPlayer(rooms[0].Center);//生成玩家
+                    playerGo.GetComponent<PlayerController>().Init();//初始化玩家控制器
+                    _playerTransform = playerGo.transform;//设置玩家位置
+                }
+
+                //敌人生成
+                for (int i = 1; i < rooms.Count; i++)
+                {
+                    var sd = spwan.SpwanEnemy(rooms[i].Center);//生成敌人
+                    var id = enmeyModel.Register(sd.Data);//注册敌人
+                    sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人控制器
+                }
+            }
+            else { 
+                var entity=this.GetModel<IEntityModel>();//实体模型
+                var playerGo=spwan.SpawnPlayer(entity.Position);//生成玩家
                 playerGo.GetComponent<PlayerController>().Init();//初始化玩家控制器
                 _playerTransform = playerGo.transform;//设置玩家位置
-            }
 
-            //敌人生成
-            for (int i = 1; i < rooms.Count; i++)
-            {
-                var sd = spwan.SpwanEnemy(rooms[i].Center);//生成敌人
-                var id = enmeyModel.Register(sd.Data);//注册敌人
-                sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人控制器
+                var prefab=Resources.Load<GameObject>("Perfabs/Enemy");//加载敌人预制体
+                foreach (var kv in enmeyModel.GetAll())
+                {
+                    var id=kv.Key;
+                    var data=kv.Value;
+                    var go=GameObject.Instantiate(prefab, data.Position, Quaternion.identity);//生成敌人
+                    go.GetComponent<EnemyView>().Init(id, data);//初始化敌人控制器
+                }
             }
         }
-        else if (e.OldPanel == UIPanelType.GamePlay)
+        else if (e.NewPanel == UIPanelType.Start || e.NewPanel == UIPanelType.GameOver)
         {
             //销毁敌人
             _idSnapshot.Clear();

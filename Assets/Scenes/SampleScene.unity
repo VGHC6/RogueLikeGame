@@ -275,6 +275,8 @@ MonoBehaviour:
   _gameStartPanelPrefab: {fileID: 4936847431614891810, guid: 68d948f928a494e48bf3e08f7eacd8b3, type: 3}
   _gameplayPanelPrefab: {fileID: 8194604558311586506, guid: 5318637da7d58df4db2239d110b2fe41, type: 3}
   _gameOverPanelPrefab: {fileID: 2557286438676250330, guid: 6a177628fd572a844ad22f61f93c3939, type: 3}
+  _pausePanelPrefab: {fileID: 5927614111878247641, guid: 6f4d4fefd2f357648b640f6d16e44edd, type: 3}
+  _saveLoadPanelPrefab: {fileID: 793758426794875457, guid: 61377f9c2215aef45932ee64df8d5274, type: 3}
 --- !u!1 &347558978
 GameObject:
   m_ObjectHideFlags: 0
