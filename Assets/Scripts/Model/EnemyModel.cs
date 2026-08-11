@@ -35,6 +35,10 @@ public class EnemyModel : AbstractModel, IEnemyModel
     public void Unregister(int id)
     {
         _enemies.Remove(id);
+        if (_enemies.Count == 0)
+        {
+            this.SendEvent(new AllEnemiesDeadEvent());
+        }
     }
 
     public EnemyRuntimeData Get(int id)

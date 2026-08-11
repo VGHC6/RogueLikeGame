@@ -65,6 +65,8 @@ public class SpawnUtility : ISpawnUtility
         foreach (var obj in GameObject.FindGameObjectsWithTag("Enemy")) GameObject.Destroy(obj);
         var player = GameObject.FindGameObjectWithTag("Player");
         if (player != null) { GameObject.Destroy(player); }
+        var exits = GameObject.FindGameObjectsWithTag("ExitPoint");
+        foreach (var exit in exits) GameObject.Destroy(exit);
     }
 
     /// <summary>

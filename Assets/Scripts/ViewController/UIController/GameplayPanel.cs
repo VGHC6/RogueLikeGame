@@ -6,7 +6,8 @@ public class GameplayPanel : MonoBehaviour, IController
 
     public void Awake()
     {
-        this.RegisterEvent<EnemyDeadEvent>(OnEnemyDead);//注册敌人死亡事件
+        this.RegisterEvent<AllEnemiesDeadEvent>(OnAllEnemiesDead);//注册敌人死亡事件
+
     }
 
     public void Start()
@@ -14,12 +15,19 @@ public class GameplayPanel : MonoBehaviour, IController
         this.GetModel<ICombatModel>().IsDead.RegisterOnValueChanged(OnPlayerDead);//注册玩家死亡事件
     }
 
-    void OnEnemyDead(EnemyDeadEvent e)
+    void OnAllEnemiesDead(AllEnemiesDeadEvent e)
     {
-        if(this.GetModel<IEnemyModel>().GetAll().Count == 0)
+        var state = this.GetModel<IGameStateModel>();
+        var rooms = this.GetModel<IMapModel>().Rooms;
+        if (state._currentPhase.Value != UIPanelType.GamePlay) return;
+        if (state._currentFloor >= state._maxFloor)
         {
-            this.GetModel<IGameStateModel>().GameOver(true);
+            state.GameOver(true);
+            return;
         }
+        if (rooms.Count == 0) return;
+        var exitPerfabs = Resources.Load<GameObject>("Perfabs/ExitPoint");
+        Instantiate(exitPerfabs, rooms[rooms.Count - 1].Center, Quaternion.identity);
     }
 
     void OnPlayerDead(bool IsDead)

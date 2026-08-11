@@ -75,7 +75,7 @@ public class SaveGameCommand : AbstractCommand
             _mapWidth= mapData.Width,
             _mapHeight= mapData.Height,
             _tileGrid= flat,
-            _room=new List<RoomData>(mapData.Rooms),
+            _room=mapData.Rooms!=null?new List<RoomData>(mapData.Rooms):new List<RoomData>(),
 
             _enemyData= listEnmey,
 

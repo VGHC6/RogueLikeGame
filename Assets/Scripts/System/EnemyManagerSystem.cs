@@ -25,6 +25,8 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
         if (player != null) _playerTransform = player.transform;
 
         this.RegisterEvent<UIPanelChangeEvent>(OnPanelChange);
+
+        this.RegisterEvent<FloorAdvancedEvent>(OnChangeFloor);
     }
 
     void OnPanelChange(UIPanelChangeEvent e)
@@ -55,18 +57,19 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
                     sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人控制器
                 }
             }
-            else { 
-                var entity=this.GetModel<IEntityModel>();//实体模型
-                var playerGo=spwan.SpawnPlayer(entity.Position);//生成玩家
+            else
+            {
+                var entity = this.GetModel<IEntityModel>();//实体模型
+                var playerGo = spwan.SpawnPlayer(entity.Position);//生成玩家
                 playerGo.GetComponent<PlayerController>().Init();//初始化玩家控制器
                 _playerTransform = playerGo.transform;//设置玩家位置
 
-                var prefab=Resources.Load<GameObject>("Perfabs/Enemy");//加载敌人预制体
+                var prefab = Resources.Load<GameObject>("Perfabs/Enemy");//加载敌人预制体
                 foreach (var kv in enmeyModel.GetAll())
                 {
-                    var id=kv.Key;
-                    var data=kv.Value;
-                    var go=GameObject.Instantiate(prefab, data.Position, Quaternion.identity);//生成敌人
+                    var id = kv.Key;
+                    var data = kv.Value;
+                    var go = GameObject.Instantiate(prefab, data.Position, Quaternion.identity);//生成敌人
                     go.GetComponent<EnemyView>().Init(id, data);//初始化敌人控制器
                 }
             }
@@ -178,5 +181,43 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
         model.SetKnockbackVelocity(enemyId, knockbackDir * data.KnockbackForce);//击退
         model.SetMoveDelta(enemyId, knockbackDir * data.KnockbackForce);
         ChangeState(enemyId, EnemyActionState.Hurt);
+    }
+
+    //通用生成代码
+    public void SpawnFromRooms(float enemyScale = 1f)
+    {
+        var spwan = this.GetUtility<ISpawnUtility>();
+        var enmeyModel = this.GetModel<IEnemyModel>();
+        var map = this.GetModel<IMapModel>();
+        var rooms = map.Rooms;
+
+        if (rooms.Count == 0) return;
+
+        // 玩家
+        var playerGo = spwan.SpawnPlayer(rooms[0].Center);
+        playerGo.GetComponent<PlayerController>().Init();
+        _playerTransform = playerGo.transform;
+
+        // 敌人
+        for (int i = 1; i < rooms.Count; i++)
+        {
+            var sd = spwan.SpwanEnemy(rooms[i].Center);
+            if (enemyScale != 1f)
+            {
+                sd.Data.MaxHp = (int)(sd.Data.MaxHp * enemyScale);
+                sd.Data.CurrentHp = sd.Data.MaxHp;
+                sd.Data.AttackPower = (int)(sd.Data.AttackPower * enemyScale);
+                sd.Data.DefensePower = (int)(sd.Data.DefensePower * enemyScale);
+            }
+            var id = enmeyModel.Register(sd.Data);
+            sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);
+        }
+    }
+
+    public void OnChangeFloor(FloorAdvancedEvent e)
+    {
+        var state = this.GetModel<IGameStateModel>();
+        float scale = 1f + (state._currentFloor - 1) * 0.3f;
+        SpawnFromRooms(scale);
     }
 }

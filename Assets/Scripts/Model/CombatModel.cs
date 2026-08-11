@@ -19,7 +19,7 @@ public class PlayerCombatModel : AbstractModel, ICombatModel
     {
         MaxHp.Value = 6;
         CurrentHp.Value = MaxHp.Value;
-        AttackPower.Value = 1;
+        AttackPower.Value = 10;
         DefensePower.Value = 1;
         IsDead.Value = false;
     }

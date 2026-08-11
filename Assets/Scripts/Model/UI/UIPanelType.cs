@@ -13,27 +13,34 @@ public interface IGameStateModel : IModel
     BindableProperty<UIPanelType> _currentPhase { get; }
     UIPanelType SaveReturnPanel { get; }//保存/加载返回面板
     SavePanelMode SaveMode { get; }
+
+    //楼层数据
+    int _currentFloor { get; set; }//当前楼
+    int _maxFloor { get; }//最大楼
     bool IsWin { get; }
     void StartGame();//开始游戏
     void GameOver(bool isWin);//游戏结束
     void ReturnToMenu();//返回主菜单
 
-    void OpenSaveLoadPanel(SavePanelMode mode,UIPanelType returnType);//打开保存/加载面板
+    void OpenSaveLoadPanel(SavePanelMode mode, UIPanelType returnType);//打开保存/加载面板
     void CloseSaveLoadPanel();//关闭保存/加载面板
 }
 
-public class GameStateModel : AbstractModel,IGameStateModel
+public class GameStateModel : AbstractModel, IGameStateModel
 {
     public BindableProperty<UIPanelType> _currentPhase { get; } = new BindableProperty<UIPanelType>();
     public bool IsWin { get; set; }
     public UIPanelType SaveReturnPanel { get; set; }
-    public SavePanelMode SaveMode{ get; set; }
+    public SavePanelMode SaveMode { get; set; }
+    public int _currentFloor { get; set; } = 1;
+    public int _maxFloor { get; } = 5;
 
-    protected override void OnInit(){}
+    protected override void OnInit() { }
 
     public void StartGame()
     {
         _currentPhase.Value = UIPanelType.GamePlay;
+        _currentFloor = 1;
     }
     public void ReturnToMenu()
     {
@@ -53,7 +60,7 @@ public class GameStateModel : AbstractModel,IGameStateModel
     /// <param name="returnType"></param>
     public void OpenSaveLoadPanel(SavePanelMode mode, UIPanelType returnType)
     {
-        SaveMode= mode;
+        SaveMode = mode;
         SaveReturnPanel = returnType;
         _currentPhase.Value = UIPanelType.SaveLoad;
     }
@@ -63,6 +70,6 @@ public class GameStateModel : AbstractModel,IGameStateModel
     /// </summary>
     public void CloseSaveLoadPanel()
     {
-     _currentPhase.Value = SaveReturnPanel;
+        _currentPhase.Value = SaveReturnPanel;
     }
 }

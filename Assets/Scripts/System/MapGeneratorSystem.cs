@@ -16,6 +16,7 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
     protected override void OnInit()
     {
         this.RegisterEvent<UIPanelChangeEvent>(OnPanelChange);
+        this.RegisterEvent<FloorAdvancedEvent>(OnFloorAdvanced);
     }
 
     void OnPanelChange(UIPanelChangeEvent e)
@@ -172,5 +173,15 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
             if (x2 - 2 >= 0 && grid[x2 - 2, y] == 0) grid[x2 - 2, y] = 2;
             if (x2 + 2 < mapW && grid[x2 + 2, y] == 0) grid[x2 + 2, y] = 2;
         }
+    }
+
+
+    public void OnFloorAdvanced(FloorAdvancedEvent e)
+    {
+        var state = this.GetModel<IGameStateModel>();
+        int roomCount = Mathf.Max(3, 9 - state._currentFloor);
+
+        GanateMap(60, 40, roomCount);
+        this.SendEvent(new MapGeneratedEvent());
     }
 }
