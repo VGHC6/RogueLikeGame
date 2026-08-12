@@ -10,6 +10,7 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterModel<IGameStateModel>(new GameStateModel());
         this.RegisterModel<IMapModel>(new MapModel());
         this.RegisterModel<IItemModel>(new ItemModel());
+        this.RegisterModel<IDoorModel>(new DoorModel());
 
         // ========== System ==========
         this.RegisterSystem<IMapGeneratorSystem>(new MapGeneratorSystem());//这个要在IEnemyManagerSystem之前，因为敌人需要地图信息来生成
@@ -17,7 +18,8 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterSystem<IEnemyManagerSystem>(new EnemyManagerSystem());
         this.RegisterSystem<IUISystem>(new UISystem());
         this.RegisterSystem<IDropSystem>(new DropSystem());
-        
+        this.RegisterSystem<IDecorationSystem>(new DecorationSystem());
+
         // Player FSM
         this.RegisterSystem<FsmIdleState>(new FsmIdleState());
         this.RegisterSystem<FsmMoveState>(new FsmMoveState());

@@ -34,4 +34,7 @@ public struct EnemyRuntimeData
     public Vector2 KnockbackVelocity;
     public int FacingDir;
     public bool IsDead;
+
+    //房间索引
+    public int IndexRoom;
 }

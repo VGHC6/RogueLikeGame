@@ -35,6 +35,8 @@ public class SaveData
     //背包
     public List<string> _packageData;
 
+    //房间
+    public List<DoorSaveData> _roomData;
 }
 
 //敌人数据
@@ -61,3 +63,9 @@ public class EnemySaveData
     public bool _isDead;
 }
 
+[Serializable]
+public class DoorSaveData
+{
+    public int _roomIndex;    // 所属房间
+    public bool _isOpen;      // 门是否打开
+}

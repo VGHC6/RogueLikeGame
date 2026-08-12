@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+
+public struct DoorPlacement
+{
+    public int RoomIndex;
+    public Vector2Int TilePosition;
+}
+
+
 public interface IMapGeneratorSystem : ISystem
 {
     void GanateMap(int MapWidth, int MapHeight, int MapCount);
@@ -30,7 +38,8 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
                 GanateMap(60, 40, roomCount);
                 this.SendEvent(new MapGeneratedEvent());
             }
-        }else if (e.NewPanel == UIPanelType.Start)
+        }
+        else if (e.NewPanel == UIPanelType.Start)
         {
             this.GetModel<IMapModel>().Clearup();
         }
@@ -75,6 +84,20 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
             int x2 = (int)r2.Center.x;
             int y2 = (int)r2.Center.y;
             CarveCorridor(_grid, MapWidth, MapHeight, x1, y1, x2, y2);
+        }
+
+        // 挖门
+        var placements = CalculateDoorPositions(_rooms);
+        var doorModel = this.GetModel<IDoorModel>();
+        doorModel.ClearAll();
+        foreach (var p in placements)
+        {
+            doorModel.RegisterDoor(new DoorData
+            {
+                RoomIndex = p.RoomIndex,
+                Position = p.TilePosition,
+                IsOpen = true   // 初始默认打开
+            });
         }
 
         this.GetModel<IMapModel>().SetMap(_grid, _rooms);
@@ -175,7 +198,7 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
         }
     }
 
-
+    /// 生成地图
     public void OnFloorAdvanced(FloorAdvancedEvent e)
     {
         var state = this.GetModel<IGameStateModel>();
@@ -183,5 +206,34 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
 
         GanateMap(60, 40, roomCount);
         this.SendEvent(new MapGeneratedEvent());
+    }
+
+
+    List<DoorPlacement> CalculateDoorPositions(List<RoomData> rooms)
+    {
+        var result = new List<DoorPlacement>();
+
+        for (int i = 0; i < rooms.Count - 1; i++)
+        {
+            var A = rooms[i];
+            var B = rooms[i + 1];
+
+            if (A.X < B.X)
+            {
+                result.Add(new DoorPlacement
+                {
+                    RoomIndex = i,
+                    TilePosition = new Vector2Int(A.X + A.Width, (int)(A.Center.y))
+                });
+
+                result.Add(new DoorPlacement
+                {
+                    RoomIndex = i + 1,
+                    TilePosition = new Vector2Int(B.X, (int)(A.Center.y))
+                });
+            }
+        }
+
+        return result;
     }
 }

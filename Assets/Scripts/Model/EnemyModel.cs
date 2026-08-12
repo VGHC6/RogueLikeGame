@@ -16,11 +16,17 @@ public interface IEnemyModel : IModel
     void SetKnockbackVelocity(int id, Vector2 vel);//设置敌人击退速度
     void SetHitChecked(int id, bool c);//设置敌人是否被击中
     void SetStateTimer(int id, float t);//设置敌人状态计时器
+
+    //房间的方法
+    int GetAliveCountInRoom(int roomId);//获取房间内存活敌人数量
+    bool IsRoomClear(int roomId);//判断房间是否被清空
 }
 
 public class EnemyModel : AbstractModel, IEnemyModel
 {
     private Dictionary<int, EnemyRuntimeData> _enemies = new();//统一管理所有敌人
+
+    private Dictionary<int, int> _alivePerRoom = new();//记录每个房间内存活敌人的数量
     private int _nextId = 1;
 
     protected override void OnInit() { }
@@ -29,12 +35,29 @@ public class EnemyModel : AbstractModel, IEnemyModel
     {
         init.EnemyId = _nextId;
         _enemies[_nextId] = init;
+
+        int roomId = init.IndexRoom;
+        _alivePerRoom.TryGetValue(roomId, out int c);//查看房间是否存在敌人
+        _alivePerRoom[roomId] = c + 1;
         return _nextId++;
     }
 
     public void Unregister(int id)
     {
         _enemies.Remove(id);
+
+        //房间敌人数量归0
+        if(_alivePerRoom.TryGetValue(id,out int c) && c > 0)
+        {
+            c--;
+            _alivePerRoom[id] = c;
+
+            if(c == 0)
+            {
+                this.SendEvent(new RoomEnemiesClearedEvent { RoomIndex = id });//发送事件
+            }
+        }
+        //清空
         if (_enemies.Count == 0)
         {
             this.SendEvent(new AllEnemiesDeadEvent());
@@ -128,5 +151,18 @@ public class EnemyModel : AbstractModel, IEnemyModel
         if (!_enemies.TryGetValue(id, out var data)) return;
         data.StateTimer = t;
         _enemies[id] = data;
+    }
+
+    //查询剩余人数
+    public int GetAliveCountInRoom(int roomId)
+    {
+        _alivePerRoom.TryGetValue(roomId, out int c);
+        return c;
+    }
+
+    //是否清理干净
+    public bool IsRoomClear(int roomId)
+    {
+        return GetAliveCountInRoom(roomId) == 0;
     }
 }

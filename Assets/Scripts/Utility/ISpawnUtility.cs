@@ -11,9 +11,13 @@ public struct EnemySpawnData
 
 public interface ISpawnUtility : IUtility
 {
-    GameObject SpawnPlayer(Vector2 pos);// 生成玩家,传入位置 
+    GameObject SpawnPlayer(Vector2 pos);// 生成玩家,传入位置
     EnemySpawnData SpwanEnemy(Vector2 atPosition);// 生成敌人,传入位置
     GameObject SpawnPickup(ItemConfig config, Vector2 atPosition);// 生成道具
+    DoorData SpawnDoor(Vector2 atPosition, int roomIndex);//生成门
+    void SpawnDecoration(GameObject perfab, Vector2 atPosition);// 生成装饰
+    void CleanDecoration();// 清理装饰
+    void CleanupDoors();
     void CleanupAll();// 清理所有
 }
 
@@ -35,6 +39,7 @@ public class SpawnUtility : ISpawnUtility
     {
         var perfab = Resources.Load<GameObject>("Perfabs/Player");
         var go = GameObject.Instantiate(perfab, pos, Quaternion.identity);// 实例化玩家
+        if(go.GetComponent<RoomDetector>()== null) go.AddComponent<RoomDetector>();// 添加房间检测器
         return go;// 返回玩家
     }
 
@@ -67,6 +72,8 @@ public class SpawnUtility : ISpawnUtility
         if (player != null) { GameObject.Destroy(player); }
         var exits = GameObject.FindGameObjectsWithTag("ExitPoint");
         foreach (var exit in exits) GameObject.Destroy(exit);
+
+        CleanDecoration();
     }
 
     /// <summary>
@@ -92,6 +99,45 @@ public class SpawnUtility : ISpawnUtility
         Position = pos
     };
 
+    /// <summary>
+    /// 生成门
+    /// </summary>
+    /// <param name="atPosition"></param>
+    /// <param name="roomIndex"></param>
+    /// <returns></returns>
+    public DoorData SpawnDoor(Vector2 atPosition, int roomIndex)
+    {
+        var prefab= Resources.Load<GameObject>("Perfabs/Door");
+        var go= GameObject.Instantiate(prefab, atPosition, Quaternion.identity);
+        var view = go.GetComponent<DoorView>();
+        return new DoorData
+        {
+            RoomIndex = roomIndex,
+            Position = Vector2Int.RoundToInt(atPosition),
+            IsOpen = true
+        };
+    }
+
+    /// <summary>
+    /// 清理门
+    /// </summary>
+    public void CleanupDoors()
+    {
+        var doors = GameObject.FindGameObjectsWithTag("Door");
+        foreach (var d in doors) GameObject.Destroy(d);
+    }
+
+    public void SpawnDecoration(GameObject perfab, Vector2 atPosition)
+    {
+        var go =GameObject.Instantiate(perfab, atPosition, Quaternion.identity);
+        go.tag = "Decoration";
+    }
+
+    public void CleanDecoration()
+    {
+        var objs = GameObject.FindGameObjectsWithTag("Decoration");
+        foreach (var obj in objs) GameObject.Destroy(obj);
+    }
 
     /// <summary>
     /// 临时生成位置
