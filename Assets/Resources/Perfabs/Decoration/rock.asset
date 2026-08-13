@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d93f85542e7c6634396c37681b793781, type: 3}
-  m_Name: gross
+  m_Name: rock
   m_EditorClassIdentifier: 
-  name: gross
-  prefab: {fileID: 6903042935541067845, guid: c872c987da1e6b34a8c491d8e8541603, type: 3}
-  weight: 0.513
+  name: rock
+  prefab: {fileID: 6137121777063252676, guid: 5b39783b61c46c3449daa4c36e52fc72, type: 3}
+  weight: 0.13

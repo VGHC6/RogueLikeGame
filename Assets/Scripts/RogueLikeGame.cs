@@ -19,6 +19,7 @@ public class RogueLikeGame : Architecture<RogueLikeGame>
         this.RegisterSystem<IUISystem>(new UISystem());
         this.RegisterSystem<IDropSystem>(new DropSystem());
         this.RegisterSystem<IDecorationSystem>(new DecorationSystem());
+        this.RegisterSystem<IDoorSystem>(new DoorSystem());
 
         // Player FSM
         this.RegisterSystem<FsmIdleState>(new FsmIdleState());

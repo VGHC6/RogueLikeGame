@@ -25,7 +25,7 @@ public class DecorationSystem : AbstractSystem, IDecorationSystem
         var spawn = this.GetUtility<ISpawnUtility>();
 
         //╪сть
-        var configs = Resources.LoadAll<DecorationConfig>("Config/Decorations");
+        var configs = Resources.LoadAll<DecorationConfig>("Perfabs/Decoration");
         if (configs.Length == 0) return;
 
         float totalWeight = 0;

@@ -69,7 +69,7 @@ public class DoorSystem : AbstractSystem, IDoorSystem
         foreach (var door in doorModel.Doors)
         {
             this.GetUtility<ISpawnUtility>().SpawnDoor(
-                new Vector2(door.Position.x, door.Position.y),
+                new Vector2(door.Position.x + 0.5f, door.Position.y + 0.5f),
                 door.RoomIndex
             );
         }

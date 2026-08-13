@@ -3,7 +3,7 @@ using UnityEngine;
 public class DoorView : MonoBehaviour, IController
 {
     [SerializeField] private int _doorId;
-    [SerializeField] private int _roomIndex;
+    [SerializeField] public int _roomIndex;
 
     private Collider2D _collider;
     private SpriteRenderer _spriteRenderer;

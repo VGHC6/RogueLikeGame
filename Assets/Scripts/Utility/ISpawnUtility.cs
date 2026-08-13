@@ -110,6 +110,7 @@ public class SpawnUtility : ISpawnUtility
         var prefab= Resources.Load<GameObject>("Perfabs/Door");
         var go= GameObject.Instantiate(prefab, atPosition, Quaternion.identity);
         var view = go.GetComponent<DoorView>();
+        view._roomIndex = roomIndex;
         return new DoorData
         {
             RoomIndex = roomIndex,
