@@ -52,7 +52,8 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
                 //敌人生成
                 for (int i = 1; i < rooms.Count; i++)
                 {
-                    var sd = spwan.SpwanEnemy(rooms[i].Center);//生成敌人
+                    var sd = spwan.SpwanEnemy(rooms[i].Center);
+                    sd.Data.IndexRoom = i;//生成敌人
                     var id = enmeyModel.Register(sd.Data);//注册敌人
                     sd.GO.GetComponent<EnemyView>().Init(id, sd.Data);//初始化敌人控制器
                 }
@@ -202,6 +203,7 @@ public class EnemyManagerSystem : AbstractSystem, IEnemyManagerSystem
         for (int i = 1; i < rooms.Count; i++)
         {
             var sd = spwan.SpwanEnemy(rooms[i].Center);
+            sd.Data.IndexRoom = i;
             if (enemyScale != 1f)
             {
                 sd.Data.MaxHp = (int)(sd.Data.MaxHp * enemyScale);

@@ -14,7 +14,7 @@ public interface ISpawnUtility : IUtility
     GameObject SpawnPlayer(Vector2 pos);// 生成玩家,传入位置
     EnemySpawnData SpwanEnemy(Vector2 atPosition);// 生成敌人,传入位置
     GameObject SpawnPickup(ItemConfig config, Vector2 atPosition);// 生成道具
-    DoorData SpawnDoor(Vector2 atPosition, int roomIndex);//生成门
+    DoorData SpawnDoor(Vector2 atPosition, int roomIndex, int doorID);//生成门
     void SpawnDecoration(GameObject perfab, Vector2 atPosition);// 生成装饰
     void CleanDecoration();// 清理装饰
     void CleanupDoors();
@@ -74,6 +74,7 @@ public class SpawnUtility : ISpawnUtility
         foreach (var exit in exits) GameObject.Destroy(exit);
 
         CleanDecoration();
+        CleanupDoors();
     }
 
     /// <summary>
@@ -105,11 +106,12 @@ public class SpawnUtility : ISpawnUtility
     /// <param name="atPosition"></param>
     /// <param name="roomIndex"></param>
     /// <returns></returns>
-    public DoorData SpawnDoor(Vector2 atPosition, int roomIndex)
+    public DoorData SpawnDoor(Vector2 atPosition, int roomIndex,int doorID)
     {
         var prefab= Resources.Load<GameObject>("Perfabs/Door");
         var go= GameObject.Instantiate(prefab, atPosition, Quaternion.identity);
         var view = go.GetComponent<DoorView>();
+        view.Init(doorID, roomIndex);
         view._roomIndex = roomIndex;
         return new DoorData
         {

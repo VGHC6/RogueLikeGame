@@ -12,20 +12,26 @@ public class DoorView : MonoBehaviour, IController
     void Awake()
     {
         _collider = GetComponent<Collider2D>();
-        _spriteRenderer = GetComponent<SpriteRenderer>();
+        _spriteRenderer = null;
+        foreach (var sr in GetComponentsInChildren<SpriteRenderer>())
+        {
+            if (sr.sprite != null)
+            {
+                _spriteRenderer = sr;
+                break;
+            }
+        }
     }
 
-    void Start()
+    public void Init(int doorId, int roomIndex)
     {
-        var model = this.GetModel<IDoorModel>();
-        model.RegisterDoor(new DoorData
-        {
-            DoorId = _doorId,
-            RoomIndex = _roomIndex,
-            IsOpen = true
-        });
+        _doorId = doorId;
+        _roomIndex = roomIndex;
+        SetOpen(true);
 
-        _doorId = model.Doors[model.Doors.Count - 1].DoorId;//��¼ID
+        // 门精灵高 1.25(2格)，纵向相邻会重叠；按 y 反序排序，让靠下的门显示在上层
+        if (_spriteRenderer != null)
+            _spriteRenderer.sortingOrder = 10000 - Mathf.RoundToInt(transform.position.y * 100f);
 
         this.RegisterEvent<DoorStateChangedEvent>(OnDoorStateChanged).UnRegisterWhenGameObjectDestroyed(gameObject);
     }
@@ -33,14 +39,12 @@ public class DoorView : MonoBehaviour, IController
     void OnDoorStateChanged(DoorStateChangedEvent e)
     {
         if (e.DoorId != _doorId) return;
-
-        _collider.enabled = !e.IsOpen;
-        _spriteRenderer.enabled = !e.IsOpen;
+        SetOpen(e.IsOpen);
     }
 
-    void OnDestroy()
+    void SetOpen(bool isOpen)
     {
-        var model = this.GetModel<IDoorModel>();
-        model?.ReMoveDoor(_doorId);
+        if (_collider != null) _collider.enabled = !isOpen;
+        if (_spriteRenderer != null) _spriteRenderer.enabled = !isOpen;
     }
 }

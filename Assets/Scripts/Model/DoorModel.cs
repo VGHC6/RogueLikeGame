@@ -7,6 +7,7 @@ public struct DoorData
     public Vector2Int Position;
     public bool IsOpen;
     public int RoomIndex;
+    public bool IsSideWall; // true=ä¸œ/è¥¿å¢™(å·¦å³çš„é—¨), false=åŒ—/å—å¢™(ä¸Šä¸‹çš„é—¨)
 }
 
 
@@ -15,13 +16,13 @@ public interface IDoorModel : IModel
     List<DoorData> Doors { get; }
     void RegisterDoor(DoorData door);
     void ReMoveDoor(int doorId);
-    //²Ù×÷µ¥¸öÃÅ
-    void SetDoorOpen(int doorId, bool isOpen);
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    void SetDoorsInRoomOpen(int doorId, bool isOpen);
+    public void SetAllDoorsOpen(bool isOpen);
     bool IsOpen(int doorId);
-    //²Ù×÷Õû¸ö·¿¼äµÄÃÅ
-    void SetAllDoorOpen(int doorId, bool isOpen);
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     bool IsAllDoorOpen(int roomIndex);
-    //²éÑ¯
+    //ï¿½ï¿½Ñ¯
     List<DoorData> GetDoorsByRoom(int roomIndex);
     void ClearAll();
 }
@@ -56,55 +57,44 @@ public class DoorModel : AbstractModel, IDoorModel
         return true;
     }
 
+    public void SetDoorsInRoomOpen(int doorId, bool isOpen)
+    {
+        for(int i = 0; i < Doors.Count; i++)
+        {
+            if (Doors[i].RoomIndex != doorId) continue;
+            if (Doors[i].IsOpen == isOpen) continue;
+            var d = Doors[i];
+            d.IsOpen = isOpen;
+            Doors[i] = d;
+            this.SendEvent(new DoorStateChangedEvent
+            {
+                DoorId = d.DoorId,
+                RoomIndex=doorId,
+                IsOpen=isOpen
+            });
+        }
+    }
+
+    /// <summary>
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    /// </summary>
+    /// <param name="isOpen"></param>
+    /// <exception cref="System.NotImplementedException"></exception>
+    public void SetAllDoorsOpen(bool isOpen)
+    {
+        for (int i = 0; i < Doors.Count; i++)
+        {
+            if (Doors[i].IsOpen == isOpen) continue;
+            var d = Doors[i]; d.IsOpen = isOpen; Doors[i] = d;
+            this.SendEvent(new DoorStateChangedEvent { DoorId = d.DoorId, IsOpen = isOpen });
+        }
+    }
+
     public void RegisterDoor(DoorData door)
     {
-        door.DoorId = _nextIndex++;//Ôö¼Ó±àºÅ
+        door.DoorId = _nextIndex++;//ï¿½ï¿½ï¿½Ó±ï¿½ï¿½
         Doors.Add(door);
     }
-
-    public void SetAllDoorOpen(int doorId, bool isOpen)
-    {
-        for (int i = 0; i < Doors.Count; i++)
-        {
-            if (Doors[i].DoorId == doorId)
-            {
-                var d = Doors[i];
-                d.IsOpen = isOpen;
-                Doors[i] = d;
-
-                //·¢ËÍ¿ªÃÅÊÂ¼ş
-                this.SendEvent(new DoorStateChangedEvent
-                {
-                    DoorId = doorId,
-                    RoomIndex = d.RoomIndex,
-                    IsOpen = isOpen
-                });
-            }
-        }
-    }
-
-    public void SetDoorOpen(int doorId, bool isOpen)
-    {
-        for (int i = 0; i < Doors.Count; i++)
-        {
-            if (Doors[i].DoorId == doorId)
-            {
-                var d = Doors[i];
-                d.IsOpen = isOpen;
-                Doors[i] = d;
-
-                //·¢ËÍ¿ªÃÅÊÂ¼ş
-                this.SendEvent(new DoorStateChangedEvent
-                {
-                    DoorId = doorId,
-                    RoomIndex = d.RoomIndex,
-                    IsOpen = isOpen
-                });
-                return;
-            }
-        }
-    }
-
     public void ReMoveDoor(int doorId)
     {
         Doors.RemoveAll(d => d.DoorId == doorId);
@@ -122,4 +112,6 @@ public class DoorModel : AbstractModel, IDoorModel
         }
         return result;
     }
+
+
 }

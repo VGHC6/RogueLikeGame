@@ -1,32 +1,32 @@
 using System.Collections.Generic;
 using UnityEngine;
-//µĞÈËÊôĞÔ
+//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 public interface IEnemyModel : IModel
 {
-    int Register(EnemyRuntimeData init);//×¢²áµĞÈË
-    void Unregister(int id);//×¢ÏúµĞÈË
-    EnemyRuntimeData Get(int id);//»ñÈ¡µĞÈË
-    bool TryGet(int id, out EnemyRuntimeData data);//³¢ÊÔ»ñÈ¡µĞÈË
-    IReadOnlyDictionary<int, EnemyRuntimeData> GetAll();//»ñÈ¡ËùÓĞµĞÈË
-    void SetCurrentHp(int id, int hp);//ÉèÖÃµĞÈËµ±Ç°ÑªÁ¿
-    void SetState(int id, EnemyActionState state);//ÉèÖÃµĞÈË×´Ì¬
-    void SetMoveDelta(int id, Vector2 delta);//ÉèÖÃµĞÈËÒÆ¶¯·½Ïò
-    void SetPosition(int id, Vector2 pos);//ÉèÖÃµĞÈËÎ»ÖÃ
-    void SetFacingDir(int id, int dir);//ÉèÖÃµĞÈË³¯Ïò
-    void SetKnockbackVelocity(int id, Vector2 vel);//ÉèÖÃµĞÈË»÷ÍËËÙ¶È
-    void SetHitChecked(int id, bool c);//ÉèÖÃµĞÈËÊÇ·ñ±»»÷ÖĞ
-    void SetStateTimer(int id, float t);//ÉèÖÃµĞÈË×´Ì¬¼ÆÊ±Æ÷
+    int Register(EnemyRuntimeData init);//×¢ï¿½ï¿½ï¿½ï¿½ï¿½
+    void Unregister(int id);//×¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    EnemyRuntimeData Get(int id);//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½
+    bool TryGet(int id, out EnemyRuntimeData data);//ï¿½ï¿½ï¿½Ô»ï¿½È¡ï¿½ï¿½ï¿½ï¿½
+    IReadOnlyDictionary<int, EnemyRuntimeData> GetAll();//ï¿½ï¿½È¡ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½
+    void SetCurrentHp(int id, int hp);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½Ëµï¿½Ç°Ñªï¿½ï¿½
+    void SetState(int id, EnemyActionState state);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½×´Ì¬
+    void SetMoveDelta(int id, Vector2 delta);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½Æ¶ï¿½ï¿½ï¿½ï¿½ï¿½
+    void SetPosition(int id, Vector2 pos);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½Î»ï¿½ï¿½
+    void SetFacingDir(int id, int dir);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½Ë³ï¿½ï¿½ï¿½
+    void SetKnockbackVelocity(int id, Vector2 vel);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½Ë»ï¿½ï¿½ï¿½ï¿½Ù¶ï¿½
+    void SetHitChecked(int id, bool c);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½Ç·ñ±»»ï¿½ï¿½ï¿½
+    void SetStateTimer(int id, float t);//ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½Ê±ï¿½ï¿½
 
-    //·¿¼äµÄ·½·¨
-    int GetAliveCountInRoom(int roomId);//»ñÈ¡·¿¼äÄÚ´æ»îµĞÈËÊıÁ¿
-    bool IsRoomClear(int roomId);//ÅĞ¶Ï·¿¼äÊÇ·ñ±»Çå¿Õ
+    //ï¿½ï¿½ï¿½ï¿½Ä·ï¿½ï¿½ï¿½
+    int GetAliveCountInRoom(int roomId);//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    bool IsRoomClear(int roomId);//ï¿½Ğ¶Ï·ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½
 }
 
 public class EnemyModel : AbstractModel, IEnemyModel
 {
-    private Dictionary<int, EnemyRuntimeData> _enemies = new();//Í³Ò»¹ÜÀíËùÓĞµĞÈË
+    private Dictionary<int, EnemyRuntimeData> _enemies = new();//Í³Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğµï¿½ï¿½ï¿½
 
-    private Dictionary<int, int> _alivePerRoom = new();//¼ÇÂ¼Ã¿¸ö·¿¼äÄÚ´æ»îµĞÈËµÄÊıÁ¿
+    private Dictionary<int, int> _alivePerRoom = new();//ï¿½ï¿½Â¼Ã¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½ï¿½
     private int _nextId = 1;
 
     protected override void OnInit() { }
@@ -37,27 +37,29 @@ public class EnemyModel : AbstractModel, IEnemyModel
         _enemies[_nextId] = init;
 
         int roomId = init.IndexRoom;
-        _alivePerRoom.TryGetValue(roomId, out int c);//²é¿´·¿¼äÊÇ·ñ´æÔÚµĞÈË
+        _alivePerRoom.TryGetValue(roomId, out int c);//ï¿½é¿´ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½
         _alivePerRoom[roomId] = c + 1;
         return _nextId++;
     }
 
     public void Unregister(int id)
     {
+        if (!_enemies.TryGetValue(id, out var data)) return;
         _enemies.Remove(id);
+        int roomIdx = data.IndexRoom;
 
-        //·¿¼äµĞÈËÊıÁ¿¹é0
-        if(_alivePerRoom.TryGetValue(id,out int c) && c > 0)
+        //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0
+        if(_alivePerRoom.TryGetValue(roomIdx,out int c) && c > 0)
         {
             c--;
-            _alivePerRoom[id] = c;
+            _alivePerRoom[roomIdx] = c;
 
             if(c == 0)
             {
-                this.SendEvent(new RoomEnemiesClearedEvent { RoomIndex = id });//·¢ËÍÊÂ¼ş
+                this.SendEvent(new RoomEnemiesClearedEvent { RoomIndex = roomIdx });//ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
             }
         }
-        //Çå¿Õ
+        //ï¿½ï¿½ï¿½
         if (_enemies.Count == 0)
         {
             this.SendEvent(new AllEnemiesDeadEvent());
@@ -153,14 +155,14 @@ public class EnemyModel : AbstractModel, IEnemyModel
         _enemies[id] = data;
     }
 
-    //²éÑ¯Ê£ÓàÈËÊı
+    //ï¿½ï¿½Ñ¯Ê£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     public int GetAliveCountInRoom(int roomId)
     {
         _alivePerRoom.TryGetValue(roomId, out int c);
         return c;
     }
 
-    //ÊÇ·ñÇåÀí¸É¾»
+    //ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É¾ï¿½
     public bool IsRoomClear(int roomId)
     {
         return GetAliveCountInRoom(roomId) == 0;

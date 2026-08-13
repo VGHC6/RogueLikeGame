@@ -6,6 +6,7 @@ public struct DoorPlacement
 {
     public int RoomIndex;
     public Vector2Int TilePosition;
+    public bool IsSideWall; // true=东/西墙(左右的门), false=北/南墙(上下的门)
 }
 
 
@@ -87,7 +88,7 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
         }
 
         // 挖门
-        var placements = CalculateDoorPositions(_rooms);
+        var placements = CalculateDoorPositions(_grid, _rooms);
         var doorModel = this.GetModel<IDoorModel>();
         doorModel.ClearAll();
         foreach (var p in placements)
@@ -96,7 +97,8 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
             {
                 RoomIndex = p.RoomIndex,
                 Position = p.TilePosition,
-                IsOpen = true   // 初始默认打开
+                IsOpen = true,   // 初始默认打开
+                IsSideWall = p.IsSideWall
             });
         }
 
@@ -209,31 +211,56 @@ public class MapGeneratorSystem : AbstractSystem, IMapGeneratorSystem
     }
 
 
-    List<DoorPlacement> CalculateDoorPositions(List<RoomData> rooms)
+    List<DoorPlacement> CalculateDoorPositions(int[,] grid, List<RoomData> rooms)
     {
         var result = new List<DoorPlacement>();
+        int mapW = grid.GetLength(0);
+        int mapH = grid.GetLength(1);
 
-        for (int i = 0; i < rooms.Count - 1; i++)
+        for (int i = 0; i < rooms.Count; i++)
         {
-            var A = rooms[i];
-            var B = rooms[i + 1];
+            var room = rooms[i];
+            int x0 = room.X;
+            int y0 = room.Y;
+            int x1 = room.X + room.Width - 1;
+            int y1 = room.Y + room.Height - 1;
 
-            if (A.X < B.X)
+            // 东墙：墙外一格是走廊地板(1)就在墙上开口处放门
+            int ex = x1 + 1;
+            if (ex + 1 < mapW)
             {
-                result.Add(new DoorPlacement
-                {
-                    RoomIndex = i,
-                    TilePosition = new Vector2Int(A.X + A.Width, (int)(A.Center.y))
-                });
+                for (int y = y0; y <= y1; y++)
+                    if (grid[ex + 1, y] == 1)
+                        result.Add(new DoorPlacement { RoomIndex = i, TilePosition = new Vector2Int(ex, y), IsSideWall = true });
+            }
 
-                result.Add(new DoorPlacement
-                {
-                    RoomIndex = i + 1,
-                    TilePosition = new Vector2Int(B.X, (int)(A.Center.y))
-                });
+            // 西墙
+            int wx = x0 - 1;
+            if (wx - 1 >= 0)
+            {
+                for (int y = y0; y <= y1; y++)
+                    if (grid[wx - 1, y] == 1)
+                        result.Add(new DoorPlacement { RoomIndex = i, TilePosition = new Vector2Int(wx, y), IsSideWall = true });
+            }
+
+            // 北墙
+            int ny = y1 + 1;
+            if (ny + 1 < mapH)
+            {
+                for (int x = x0; x <= x1; x++)
+                    if (grid[x, ny + 1] == 1)
+                        result.Add(new DoorPlacement { RoomIndex = i, TilePosition = new Vector2Int(x, ny) });
+            }
+
+            // 南墙
+            int sy = y0 - 1;
+            if (sy - 1 >= 0)
+            {
+                for (int x = x0; x <= x1; x++)
+                    if (grid[x, sy - 1] == 1)
+                        result.Add(new DoorPlacement { RoomIndex = i, TilePosition = new Vector2Int(x, sy) });
             }
         }
-
         return result;
     }
 }

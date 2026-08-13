@@ -15,18 +15,17 @@ public class DoorSystem : AbstractSystem, IDoorSystem
 
     protected override void OnInit()
     {
-        _doorModel=this.GetModel<IDoorModel>();
-        _mapModel=this.GetModel<IMapModel>();
-        _enemyModel=this.GetModel<IEnemyModel>();
-        //×¢²áÊÂ¼þ
+        _doorModel = this.GetModel<IDoorModel>();
+        _mapModel = this.GetModel<IMapModel>();
+        _enemyModel = this.GetModel<IEnemyModel>();
+        //×¢ï¿½ï¿½ï¿½Â¼ï¿½
         this.RegisterEvent<PlayerEnteredRoomEvent>(OnPlayerEnteredRoom);
         this.RegisterEvent<RoomEnemiesClearedEvent>(OnRoomCleared);
         this.RegisterEvent<AllEnemiesDeadEvent>(OnAllEnemiesDead);
-        this.RegisterEvent<FloorAdvancedEvent>(OnFloorAdvanced);
         this.RegisterEvent<MapGeneratedEvent>(OnMapGenerated);
     }
 
-    //µØ°åÉý¼¶ÊÂ¼þ
+    //ï¿½Ø°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
     private void OnFloorAdvanced(FloorAdvancedEvent e)
     {
         _doorModel.ClearAll();
@@ -34,43 +33,45 @@ public class DoorSystem : AbstractSystem, IDoorSystem
         spwan.CleanupDoors();
     }
 
-    //ËùÓÐµÐÈËËÀÍöÊÂ¼þs
+    //ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½s
     private void OnAllEnemiesDead(AllEnemiesDeadEvent e)
     {
-        foreach(var door in _doorModel.Doors)
+        foreach (var door in _doorModel.Doors)
         {
-            _doorModel.SetAllDoorOpen(door.RoomIndex, true);
+            _doorModel.SetAllDoorsOpen(true);
         }
     }
 
-    //ÇåÀí·¿¼äÊÂ¼þ
+    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
     private void OnRoomCleared(RoomEnemiesClearedEvent e)
     {
-        _doorModel.SetDoorOpen(e.RoomIndex, true);
+        _doorModel.SetDoorsInRoomOpen(e.RoomIndex, true);
     }
 
-    //½øÈë·¿¼äÊÂ¼þ
+    //ï¿½ï¿½ï¿½ë·¿ï¿½ï¿½ï¿½Â¼ï¿½
     private void OnPlayerEnteredRoom(PlayerEnteredRoomEvent e)
     {
         if (e.RoomIndex == 0) return;
-        if(_enemyModel.IsRoomClear(e.RoomIndex))return;//ÇåÀí
+        if (_enemyModel.IsRoomClear(e.RoomIndex)) return;//ï¿½ï¿½ï¿½ï¿½
 
-        _doorModel.SetDoorOpen(e.RoomIndex, false);//½øÈë¹ØÃÅ
+        _doorModel.SetDoorsInRoomOpen(e.RoomIndex, false);//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     }
 
-    //µØÍ¼Éú³ÉÊÂ¼þ
+    //ï¿½ï¿½Í¼ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½
     void OnMapGenerated(MapGeneratedEvent e)
     {
-        // ÇåÀí¾ÉÃÅ GameObject
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ GameObject
         this.GetUtility<ISpawnUtility>().CleanupDoors();
 
-        // ¸ù¾Ý DoorModel ÖÐµÄÊý¾ÝÖØÐÂÉú³ÉÃÅ
+        // ï¿½ï¿½ï¿½ï¿½ DoorModel ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         var doorModel = this.GetModel<IDoorModel>();
         foreach (var door in doorModel.Doors)
         {
+            float yOffset = door.IsSideWall ? 1.125f : 0.625f;
             this.GetUtility<ISpawnUtility>().SpawnDoor(
-                new Vector2(door.Position.x + 0.5f, door.Position.y + 0.5f),
-                door.RoomIndex
+                new Vector2(door.Position.x + 0.5f, door.Position.y + yOffset),
+                door.RoomIndex,
+                door.DoorId
             );
         }
     }
